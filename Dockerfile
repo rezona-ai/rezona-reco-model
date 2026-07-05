@@ -7,6 +7,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
+# torch CPU-only (~200MB vs ~2GB for CUDA), sufficient for training on CPU
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir -r requirements.txt
 
 # all source lives under cloud/ — self-contained
