@@ -1,0 +1,60 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: coarse-ranking-train
+  namespace: production
+spec:
+  schedule: "0 2 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          serviceAccountName: recoleaf
+
+          containers:
+          - name: trainer
+            image: gcr.io/rezonaai/coarse-ranking-trainer:latest
+            imagePullPolicy: Always
+            command: ["python", "/app/train_gcs.py"]
+
+            env:
+            - name: GCS_BUCKET
+              value: "rezona-ml"
+            - name: GCS_ARTIFACTS_PREFIX
+              value: "coarse-ranking/artifacts"
+            - name: GCS_CKPT_PREFIX
+              value: "coarse-ranking/ckpts"
+            - name: EPOCHS
+              value: "2"
+            - name: BS
+              value: "4096"
+            - name: LR
+              value: "3e-3"
+            - name: EVAL_EVERY
+              value: "50"
+
+            resources:
+              requests:
+                cpu: "4"
+                memory: "32Gi"
+              limits:
+                cpu: "8"
+                memory: "32Gi"
+
+          # ── GPU 版本（uncomment 使用 L4）─────────────────────────────────
+          # resources:
+          #   limits:
+          #     nvidia.com/gpu: "1"
+          #     memory: "16Gi"
+          #     cpu: "4"
+          # tolerations:
+          # - key: nvidia.com/gpu
+          #   operator: Exists
+          #   effect: NoSchedule
+          # nodeSelector:
+          #   cloud.google.com/gke-accelerator: nvidia-l4
