@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Lightweight coarse-ranking two-tower (production Config A).
+Lightweight two_tower_lite two-tower (production Config A).
 
 User tower : context only — country / platform / app_version  (NO user_id, NO behavior
              sequence, NO multihot). This genuinely drops the 13.5M-param user_id table.

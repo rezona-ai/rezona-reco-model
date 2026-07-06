@@ -1,10 +1,10 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: coarse-ranking-features
+  name: two-tower-lite-features
   namespace: production
 spec:
-  schedule: "0 1 * * *"
+  schedule: "0 3 * * *"
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 1
@@ -18,7 +18,7 @@ spec:
 
           containers:
           - name: features
-            image: gcr.io/rezonaai/coarse-ranking-trainer:latest
+            image: us-east1-docker.pkg.dev/rezonaai/reco-model/ml-trainer:latest
             imagePullPolicy: Always
             command: ["python", "/app/pull_and_build.py"]
 
@@ -26,13 +26,15 @@ spec:
             - name: GCS_BUCKET
               value: "rezona-ml"
             - name: GCS_ARTIFACTS_PREFIX
-              value: "coarse-ranking/artifacts"
+              value: "two_tower_lite/artifacts"
             - name: GCS_RAW_PREFIX
-              value: "coarse-ranking/raw"
+              value: "two_tower_lite/raw"
             - name: BQ_PROJECT
               value: "rezonaai"
             - name: BQ_TABLE
               value: "rezonaai.datalake.reco_labeled_log_flat"
+            - name: BQ_WHERE
+              value: "context_info.realshow = TRUE"
             # TRAIN_DAYS / TEST_DAYS 留空 → 自动滚动窗口（最近13天/昨天）
 
             resources:

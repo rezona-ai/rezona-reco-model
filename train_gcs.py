@@ -4,17 +4,20 @@ Job 2 — 从 GCS 下载 artifacts → 训练 → 上传 ckpt 到 GCS。
 
 Env vars:
   GCS_BUCKET              e.g. rezona-ml
-  GCS_ARTIFACTS_PREFIX    e.g. coarse-ranking/artifacts  (会读 latest/ 子目录)
-  GCS_CKPT_PREFIX         e.g. coarse-ranking/ckpts      (会写 YYYY-MM-DD/ 子目录)
+  GCS_ARTIFACTS_PREFIX    e.g. two_tower_lite/artifacts  (会读 latest/ 子目录)
+  GCS_CKPT_PREFIX         e.g. two_tower_lite/ckpts      (会写 YYYY-MM-DD/ 子目录)
   EPOCHS                  default 2
   BS                      default 4096
   LR                      default 3e-3
   EVAL_EVERY              default 50
 """
-import os, sys, json, copy, csv, time, datetime, tempfile
+import os, sys, json, copy, csv, time, datetime, tempfile, math
 import numpy as np
 import torch
 import torch.nn as nn
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 from google.cloud import storage
 
@@ -132,6 +135,9 @@ def train(art_dir: str, ckpt_dir: str, epochs: int, bs: int, lr: float, eval_eve
     opt   = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-5)
     lossf = nn.BCEWithLogitsLoss()
 
+    total_steps = epochs * math.ceil(n_tr / bs)
+    scheduler   = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=total_steps, eta_min=0)
+
     keys = ["step", "loss", "train_auc", "train_gauc",
             "test_auc", "test_gauc", "test_auc_new", "test_gauc_new",
             "test_auc_old", "test_gauc_old"]
@@ -149,6 +155,7 @@ def train(art_dir: str, ckpt_dir: str, epochs: int, bs: int, lr: float, eval_eve
             logit = model(gather_batch(train_data, idx))
             loss  = lossf(logit, y)
             opt.zero_grad(); loss.backward(); opt.step()
+            scheduler.step()
             step += 1
             buf_y.append(y.detach().cpu().numpy())
             buf_s.append(torch.sigmoid(logit).detach().cpu().numpy())
@@ -193,7 +200,32 @@ def train(art_dir: str, ckpt_dir: str, epochs: int, bs: int, lr: float, eval_eve
         w = csv.writer(f); w.writerow(list(hist))
         for row in zip(*hist.values()): w.writerow(row)
 
-    return final_path, best_path, curves_path
+    plot_path = os.path.join(ckpt_dir, "curves.png")
+    _plot_curves(hist, best["step"], plot_path)
+
+    return final_path, best_path, curves_path, plot_path
+
+
+def _plot_curves(hist: dict, best_step: int, out_path: str) -> None:
+    steps = hist["step"]
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+
+    for ax, metric, title in [
+        (axes[0], "auc",  "AUC"),
+        (axes[1], "gauc", "GAUC"),
+    ]:
+        ax.plot(steps, hist[f"train_{metric}"], label="train", linewidth=1.5)
+        ax.plot(steps, hist[f"test_{metric}"],  label="test",  linewidth=1.5)
+        if best_step and best_step in steps:
+            bx = steps.index(best_step)
+            ax.axvline(x=best_step, color="gray", linestyle="--", linewidth=1, label=f"best@{best_step}")
+            ax.scatter([best_step], [hist[f"test_{metric}"][bx]], color="red", zorder=5)
+        ax.set_title(title); ax.set_xlabel("step"); ax.legend(); ax.grid(alpha=0.3)
+
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=120)
+    plt.close(fig)
+    print(f"  saved curves plot -> {out_path}")
 
 
 # ── main ──────────────────────────────────────────────────────────────────────
@@ -217,7 +249,7 @@ def main():
 
         # 2. 训练
         print(f"\n[2/3] training (epochs={epochs} bs={bs} lr={lr})")
-        final_path, best_path, curves_path = train(
+        final_path, best_path, curves_path, plot_path = train(
             art_dir, ckpt_dir, epochs, bs, lr, eval_every
         )
 
@@ -225,7 +257,7 @@ def main():
         today = datetime.date.today().isoformat()
         dated_prefix = f"{ckpt_prefix}/{today}"
         print(f"\n[3/3] uploading ckpts to gs://{bucket}/{dated_prefix}/")
-        for local in [final_path, best_path, curves_path]:
+        for local in [final_path, best_path, curves_path, plot_path]:
             if local and os.path.exists(local):
                 gcs_upload_file(local, bucket, f"{dated_prefix}/{os.path.basename(local)}")
 

@@ -1,10 +1,10 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: coarse-ranking-train
+  name: two-tower-lite-train
   namespace: production
 spec:
-  schedule: "0 2 * * *"
+  schedule: "0 4 * * *"
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 1
@@ -18,7 +18,7 @@ spec:
 
           containers:
           - name: trainer
-            image: gcr.io/rezonaai/coarse-ranking-trainer:latest
+            image: us-east1-docker.pkg.dev/rezonaai/reco-model/ml-trainer:latest
             imagePullPolicy: Always
             command: ["python", "/app/train_gcs.py"]
 
@@ -26,9 +26,9 @@ spec:
             - name: GCS_BUCKET
               value: "rezona-ml"
             - name: GCS_ARTIFACTS_PREFIX
-              value: "coarse-ranking/artifacts"
+              value: "two_tower_lite/artifacts"
             - name: GCS_CKPT_PREFIX
-              value: "coarse-ranking/ckpts"
+              value: "two_tower_lite/ckpts"
             - name: EPOCHS
               value: "2"
             - name: BS

@@ -6,7 +6,7 @@
 set -euo pipefail
 
 DATA_DIR=${1:-"$(cd "$(dirname "$0")/.." && pwd)/data"}
-BUCKET="gs://rezona-ml/coarse-ranking/raw"
+BUCKET="gs://rezona-ml/two_tower_lite/raw"
 
 echo "==> uploading ndjson from ${DATA_DIR}/ to ${BUCKET}/"
 gsutil -m cp "${DATA_DIR}"/*.ndjson "${BUCKET}/"
