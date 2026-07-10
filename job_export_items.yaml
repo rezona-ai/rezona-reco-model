@@ -1,0 +1,36 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: export-item-vectors
+  namespace: production
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      serviceAccountName: recoleaf
+      containers:
+      - name: exporter
+        image: us-east1-docker.pkg.dev/rezonaai/reco-model/ml-trainer:latest
+        imagePullPolicy: Always
+        command: ["python", "/app/export_item_vectors.py"]
+        env:
+        - name: GCS_BUCKET
+          value: "rezona-ml"
+        - name: GCS_ARTIFACTS_PREFIX
+          value: "two_tower_lite/artifacts"
+        - name: GCS_CKPT_PREFIX
+          value: "two_tower_lite/ckpts"
+        - name: GCS_ITEM_VECTORS_PREFIX
+          value: "two_tower_lite/item_vectors"
+        - name: BQ_PROJECT
+          value: "rezonaai"
+        - name: BQ_TABLE
+          value: "rezonaai.ads.ads_game_info_df_view"
+        resources:
+          requests:
+            cpu: "2"
+            memory: "4Gi"
+          limits:
+            cpu: "4"
+            memory: "8Gi"

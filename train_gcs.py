@@ -184,6 +184,9 @@ def train(art_dir: str, ckpt_dir: str, epochs: int, bs: int, lr: float, eval_eve
         print(f"== epoch {ep} == TEST AUC {r['auc']:.4f} GAUC {r['gauc']:.4f} "
               f"| old {r['auc_old']:.4f}/{r['gauc_old']:.4f} "
               f"| new {r['auc_new']:.4f}/{r['gauc_new']:.4f}")
+        os.makedirs(ckpt_dir, exist_ok=True)
+        ep_path = os.path.join(ckpt_dir, f"two_tower_lite_ep{ep}.pt")
+        torch.save(model.state_dict(), ep_path)
 
     os.makedirs(ckpt_dir, exist_ok=True)
     final_path = os.path.join(ckpt_dir, "two_tower_lite.pt")
@@ -203,7 +206,9 @@ def train(art_dir: str, ckpt_dir: str, epochs: int, bs: int, lr: float, eval_eve
     plot_path = os.path.join(ckpt_dir, "curves.png")
     _plot_curves(hist, best["step"], plot_path)
 
-    return final_path, best_path, curves_path, plot_path
+    ep_paths = [os.path.join(ckpt_dir, f"two_tower_lite_ep{ep}.pt") for ep in range(epochs)]
+
+    return final_path, best_path, curves_path, plot_path, ep_paths
 
 
 def _plot_curves(hist: dict, best_step: int, out_path: str) -> None:
@@ -249,7 +254,7 @@ def main():
 
         # 2. 训练
         print(f"\n[2/3] training (epochs={epochs} bs={bs} lr={lr})")
-        final_path, best_path, curves_path, plot_path = train(
+        final_path, best_path, curves_path, plot_path, ep_paths = train(
             art_dir, ckpt_dir, epochs, bs, lr, eval_every
         )
 
@@ -257,7 +262,7 @@ def main():
         today = datetime.date.today().isoformat()
         dated_prefix = f"{ckpt_prefix}/{today}"
         print(f"\n[3/3] uploading ckpts to gs://{bucket}/{dated_prefix}/")
-        for local in [final_path, best_path, curves_path, plot_path]:
+        for local in [final_path, best_path, curves_path, plot_path] + ep_paths:
             if local and os.path.exists(local):
                 gcs_upload_file(local, bucket, f"{dated_prefix}/{os.path.basename(local)}")
 

@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package twotower_ranker;
+
+message TwoTowerUserFeatures {
+  string user_id      = 1;
+  string country_code = 2;
+  string platform     = 3;
+  string app_version  = 4;
+}
+
+message TwoTowerScoreRequest {
+  TwoTowerUserFeatures user     = 1;
+  repeated int64       game_ids = 2;
+}
+
+message TwoTowerGameScore {
+  int64 game_id = 1;
+  float score   = 2;
+}
+
+message TwoTowerScoreResponse {
+  repeated TwoTowerGameScore scores     = 1;
+  string                     model_date = 2;
+}
+
+service TwoTowerRankerService {
+  rpc Score(TwoTowerScoreRequest) returns (TwoTowerScoreResponse);
+}

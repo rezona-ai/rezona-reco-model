@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: two-tower-lite-ranker
+  namespace: production
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: two-tower-lite-ranker
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0       # 始终保持至少 2 个 pod 在线
+  template:
+    metadata:
+      labels:
+        app: two-tower-lite-ranker
+    spec:
+      serviceAccountName: recoleaf
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: ranker
+        image: us-east1-docker.pkg.dev/rezonaai/reco-model/ml-trainer:latest
+        imagePullPolicy: Always
+        command: ["python", "/app/serving/server.py"]
+        env:
+        - name: GCS_BUCKET
+          value: "rezona-ml"
+        - name: GCS_ARTIFACTS_PREFIX
+          value: "two_tower_lite/artifacts"
+        - name: GCS_CKPT_PREFIX
+          value: "two_tower_lite/ckpts"
+        - name: GCS_ITEM_VECTORS_PREFIX
+          value: "two_tower_lite/item_vectors"
+        - name: GRPC_PORT
+          value: "50051"
+        - name: GRPC_WORKERS
+          value: "4"
+        - name: REFRESH_ENABLED
+          value: "true"
+        ports:
+        - name: grpc
+          containerPort: 50051
+          protocol: TCP
+        resources:
+          requests:
+            cpu: "1"
+            memory: "2Gi"
+          limits:
+            cpu: "2"
+            memory: "4Gi"
+        readinessProbe:
+          tcpSocket:
+            port: 50051
+          initialDelaySeconds: 20   # 等待 GCS 下载完成
+          periodSeconds: 5
+        livenessProbe:
+          tcpSocket:
+            port: 50051
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: two-tower-lite-ranker
+  namespace: production
+spec:
+  selector:
+    app: two-tower-lite-ranker
+  type: ClusterIP
+  ports:
+  - name: grpc
+    port: 50051
+    targetPort: 50051
+    protocol: TCP
