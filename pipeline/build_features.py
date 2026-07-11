@@ -156,7 +156,7 @@ def encode_split(days, local_dir, vocab, num_mean, num_std, split_name: str):
     oov_tot  = {name: 0 for name in vocab}
 
     for i, rec in enumerate(iter_rows(days, local_dir)):
-        out["label"][i]     = 1 if rec.get("play_time") is not None else 0
+        out["label"][i]     = 1 if (rec.get("play_time") or 0) > 16850 else 0
         uid_raw = rec.get("uid")
         out["uid_group"][i] = int(uid_raw) if uid_raw is not None else 0
 
