@@ -1,0 +1,11 @@
+.git
+.DS_Store
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.png
+**/*.ipynb
+two_tower_lite/upload_data.sh
+two_tower_lite/Dockerfile
+two_tower_lite/requirements.txt
+two_tower_lite/deploy.sh

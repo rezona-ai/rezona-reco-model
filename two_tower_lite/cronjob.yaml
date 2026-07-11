@@ -20,7 +20,7 @@ spec:
           - name: trainer
             image: us-east1-docker.pkg.dev/rezonaai/reco-model/ml-trainer:latest
             imagePullPolicy: Always
-            command: ["python", "/app/train_gcs.py"]
+            command: ["python", "/app/two_tower_lite/train_gcs.py"]
 
             env:
             - name: GCS_BUCKET

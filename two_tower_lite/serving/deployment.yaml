@@ -24,7 +24,7 @@ spec:
       - name: ranker
         image: us-east1-docker.pkg.dev/rezonaai/reco-model/ml-trainer:latest
         imagePullPolicy: Always
-        command: ["python", "/app/serving/server.py"]
+        command: ["python", "/app/two_tower_lite/serving/server.py"]
         env:
         - name: GCS_BUCKET
           value: "rezona-ml"

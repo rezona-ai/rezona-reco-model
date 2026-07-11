@@ -1,10 +1,10 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: two-tower-lite-features
+  name: swing-i2i-build
   namespace: production
 spec:
-  schedule: "0 3 * * *"
+  schedule: "30 4 * * *"        # 04:30 UTC，独立于 two_tower_lite 流水线
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 1
@@ -17,25 +17,26 @@ spec:
           serviceAccountName: recoleaf
 
           containers:
-          - name: features
+          - name: swing
             image: us-east1-docker.pkg.dev/rezonaai/reco-model/ml-trainer:latest
             imagePullPolicy: Always
-            command: ["python", "/app/pull_and_build.py"]
+            command: ["python", "/app/swing/run.py"]
 
             env:
             - name: GCS_BUCKET
               value: "rezona-ml"
+            - name: GCS_SLIM_PREFIX
+              value: "swing/slim"
             - name: GCS_ARTIFACTS_PREFIX
-              value: "two_tower_lite/artifacts"
-            - name: GCS_RAW_PREFIX
-              value: "two_tower_lite/raw"
+              value: "swing/artifacts"
             - name: BQ_PROJECT
               value: "rezonaai"
             - name: BQ_TABLE
               value: "rezonaai.datalake.reco_labeled_log_flat"
             - name: BQ_WHERE
               value: "context_info.realshow = TRUE"
-            # TRAIN_DAYS / TEST_DAYS 留空 → 自动滚动窗口（最近13天/昨天）
+            - name: SWING_DAYS
+              value: "18"
 
             resources:
               requests:

@@ -1,0 +1,46 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: two-tower-lite-features
+  namespace: production
+spec:
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          serviceAccountName: recoleaf
+
+          containers:
+          - name: features
+            image: us-east1-docker.pkg.dev/rezonaai/reco-model/ml-trainer:latest
+            imagePullPolicy: Always
+            command: ["python", "/app/two_tower_lite/pull_and_build.py"]
+
+            env:
+            - name: GCS_BUCKET
+              value: "rezona-ml"
+            - name: GCS_ARTIFACTS_PREFIX
+              value: "two_tower_lite/artifacts"
+            - name: GCS_RAW_PREFIX
+              value: "two_tower_lite/raw"
+            - name: BQ_PROJECT
+              value: "rezonaai"
+            - name: BQ_TABLE
+              value: "rezonaai.datalake.reco_labeled_log_flat"
+            - name: BQ_WHERE
+              value: "context_info.realshow = TRUE"
+            # TRAIN_DAYS / TEST_DAYS 留空 → 自动滚动窗口（最近13天/昨天）
+
+            resources:
+              requests:
+                cpu: "2"
+                memory: "8Gi"
+              limits:
+                cpu: "4"
+                memory: "16Gi"
