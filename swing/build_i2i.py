@@ -25,8 +25,7 @@ Interaction label bitmask:
     bit 3 (8)  = 评论 (comment)
     bit 4 (16) = Remix
 
-Positive threshold: label > 0 (explicit interaction) OR play_time > LONG_PLAY_SEC (~p80).
-  label=0 long-play gets base score 0.8 (vs 1.0+ for explicit interactions).
+Positive threshold: label > 0 (explicit interaction only).
 Weight = label_strength * play_time_bonus.
 """
 import gzip, os, sys, json, math, time
@@ -77,7 +76,6 @@ def build_user_game_map_from_slim(paths: list) -> tuple:
 # --- tunables ---------------------------------------------------------------
 MIN_ITEM_USERS = 3     # min distinct users for a game to enter the index
 MIN_CO_USERS   = 2     # min co-occurring users to keep a pair
-LONG_PLAY_SEC  = 100   # label=0 with play_time > this treated as implicit positive (~p80)
 TOP_K          = 50    # neighbors to keep per game
 ALPHA          = 5.0   # Swing smoothing: penalises trivially popular pairs
 MAX_PAIR_USERS = 200   # cap co-user count to limit dominant-pair inflation
@@ -94,8 +92,8 @@ BIT_COMMENT = 1 << 3   # 8  评论
 BIT_REMIX   = 1 << 4   # 16 Remix
 
 def interaction_weight(label: int, play_time: int) -> float:
-    # positive gate: explicit interaction (label>0) OR long play (play_time > LONG_PLAY_SEC)
-    if label == 0 and play_time <= LONG_PLAY_SEC:
+    # positive gate: explicit interaction only (label > 0)
+    if label == 0:
         return 0.0
 
     has_like    = bool(label & BIT_LIKE)
@@ -104,16 +102,12 @@ def interaction_weight(label: int, play_time: int) -> float:
     has_comment = bool(label & BIT_COMMENT)
     has_remix   = bool(label & BIT_REMIX)
 
-    if label == 0:
-        # implicit positive via long play only: lower base score than explicit interactions
-        label_score = 0.8
-    else:
-        label_score = 1.0
-        if has_like:    label_score += 0.50
-        if has_share:   label_score += 0.50
-        if has_comment: label_score += 0.70
-        if has_follow:  label_score += 1.00
-        if has_remix:   label_score += 1.50
+    label_score = 1.0
+    if has_like:    label_score += 1.50
+    if has_share:   label_score += 1.00
+    if has_comment: label_score += 3.00
+    if has_follow:  label_score += 1.00
+    if has_remix:   label_score += 1.00
 
     # play_time bonus: log-scale, 1.0x at 60s, capped at 2.0x; floor 0.5 if no play_time
     pt_bonus = min(math.log1p(play_time) / math.log1p(60), 2.0) if play_time > 0 else 0.5
