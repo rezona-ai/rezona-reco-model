@@ -91,9 +91,11 @@ BIT_SHARE   = 1 << 2   # 4  分享
 BIT_COMMENT = 1 << 3   # 8  评论
 BIT_REMIX   = 1 << 4   # 16 Remix
 
+EFFECTIVE_PLAY_S = 16   # recent_games play_time unit is seconds
+
 def interaction_weight(label: int, play_time: int) -> float:
-    # positive gate: explicit interaction only (label > 0)
-    if label == 0:
+    # positive gate: explicit interaction (label > 0) OR effective play (play_time > 16s)
+    if label == 0 and play_time <= EFFECTIVE_PLAY_S:
         return 0.0
 
     has_like    = bool(label & BIT_LIKE)
@@ -155,7 +157,12 @@ def build_user_game_map(days: list[str]) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# pass 2: compute Swing co-occurrence for all pairs
+# pass 2: collect co-occurring user lists per game pair
+#
+# Same user-traversal structure as simplified Swing (O(U × G²)),
+# but stores uid list instead of sum_w — cheap, cache-friendly.
+# The actual |I_u ∩ I_v| computation is deferred to build_index (pass 3),
+# where it only runs over pairs that genuinely exist.
 # ---------------------------------------------------------------------------
 def build_co_occurrence(
     user_games: dict,
@@ -167,54 +174,94 @@ def build_co_occurrence(
         for gid in games:
             item_user_cnt[gid] += 1
 
-    # filter to qualified items
     qualified = {gid for gid, cnt in item_user_cnt.items() if cnt >= min_item_users}
     print(f"  qualified items (>={min_item_users} users): {len(qualified):,}")
 
-    # co-occurrence: (a, b) -> {"sum_weights": float, "co_users": int}
-    # use frozen (min, max) as key to avoid double counting
-    co_occ: dict[tuple, list] = defaultdict(lambda: [0.0, 0])  # [sum_w, co_users]
+    # co_occ: (min_gid, max_gid) -> [co_users, [uid, ...]]
+    # uid list is capped at MAX_PAIR_USERS; used in build_index for |I_u ∩ I_v|
+    co_occ: dict[tuple, list] = defaultdict(lambda: [0, []])
 
     n_users_processed = 0
     for uid, games in user_games.items():
         qual_games = {gid: w for gid, w in games.items() if gid in qualified}
         if len(qual_games) < 2:
             continue
-        # sort by weight desc, cap to TOP_K
         top_games = sorted(qual_games.items(), key=lambda kv: -kv[1])[:USER_GAME_CAP]
         n_users_processed += 1
         for i in range(len(top_games)):
-            gid_a, wa = top_games[i]
+            gid_a, _ = top_games[i]
             for j in range(i + 1, len(top_games)):
-                gid_b, wb = top_games[j]
+                gid_b, _ = top_games[j]
                 key = (min(gid_a, gid_b), max(gid_a, gid_b))
                 entry = co_occ[key]
-                entry[0] += wa * wb
-                entry[1] = min(entry[1] + 1, MAX_PAIR_USERS)
+                entry[0] += 1
+                if entry[0] <= MAX_PAIR_USERS:
+                    entry[1].append(uid)
 
     print(f"  users contributing pairs: {n_users_processed:,}")
     print(f"  total co-occurrence pairs: {len(co_occ):,}")
+
+    # co_users distribution
+    buckets = [1, 2, 3, 5, 10, 20, 50, 100, 200]
+    counts = [0] * (len(buckets) + 1)
+    for cu, _ in co_occ.values():
+        for i, threshold in enumerate(buckets):
+            if cu <= threshold:
+                counts[i] += 1
+                break
+        else:
+            counts[-1] += 1
+    total_pairs = len(co_occ)
+    print("  co_users distribution:")
+    prev = 0
+    labels = [f"=={b}" if i == 0 else f"{buckets[i-1]+1}–{b}" for i, b in enumerate(buckets)]
+    labels.append(f">{buckets[-1]}")
+    for label, cnt in zip(labels, counts):
+        if cnt:
+            print(f"    co_users {label:>10s}: {cnt:>8,}  ({cnt/total_pairs*100:.1f}%)")
+
     return co_occ, item_user_cnt, qualified
 
 
 # ---------------------------------------------------------------------------
-# step 3: compute Swing similarity and build top-K neighbor index
+# step 3: original Swing — Σ_{u,v ∈ U_AB} 1 / (α + |I_u ∩ I_v|)
+#         normalized by sqrt(n_users_A × n_users_B) to suppress popularity bias
+#
+# For each pair (a, b), iterate over stored uid pairs and compute set
+# intersection sizes.  u == v contributes once; u != v contributes × 2
+# (both ordered pairs from the double sum).
 # ---------------------------------------------------------------------------
 def build_index(
     co_occ: dict,
+    user_games: dict,
+    qualified: set,
     item_user_cnt: dict,
     alpha: float,
     top_k: int,
 ) -> dict:
-    # neighbor lists: game_id -> [(score, gid, co_users)]
+    # per-user qualified game sets (for fast intersection)
+    user_game_sets: dict[int, set] = {
+        uid: set(games.keys()) & qualified
+        for uid, games in user_games.items()
+    }
+
     neighbors: dict[int, list] = defaultdict(list)
 
-    for (a, b), (sum_w, co_u) in co_occ.items():
-        swing_raw = sum_w / (alpha + co_u)
-        denom = math.sqrt(item_user_cnt[a] * item_user_cnt[b])
-        sim = swing_raw / denom if denom > 0 else 0.0
-        neighbors[a].append((sim, b, co_u))
-        neighbors[b].append((sim, a, co_u))
+    for (a, b), (co_u, uids) in co_occ.items():
+        if co_u < MIN_CO_USERS:
+            continue
+        score = 0.0
+        for i, u in enumerate(uids):
+            gu = user_game_sets.get(u, set())
+            for v in uids[i:]:          # includes self-pair (u == v)
+                gv = user_game_sets.get(v, set())
+                overlap = len(gu & gv)
+                contrib = 1.0 / (alpha + overlap)
+                score += contrib if u == v else 2 * contrib
+        norm = math.sqrt(item_user_cnt.get(a, 1) * item_user_cnt.get(b, 1))
+        score /= norm
+        neighbors[a].append((score, b, co_u))
+        neighbors[b].append((score, a, co_u))
 
     index = {}
     for gid, nbrs in neighbors.items():
@@ -248,7 +295,7 @@ def main():
     co_occ, item_user_cnt, qualified = build_co_occurrence(user_games, MIN_ITEM_USERS)
 
     print("\n[Step 3] Building top-K neighbor index...")
-    index = build_index(co_occ, item_user_cnt, ALPHA, TOP_K)
+    index = build_index(co_occ, user_games, qualified, item_user_cnt, ALPHA, TOP_K)
     print(f"  games with neighbors: {len(index):,}")
 
     # neighbor count distribution
