@@ -34,6 +34,8 @@ Env vars:
 import datetime, gzip, math, os, sys, tempfile, time
 from pathlib import Path
 
+import redis as redis_lib
+
 from google.cloud import bigquery
 from google.cloud import storage as gcs_lib
 import orjson
@@ -61,6 +63,12 @@ SWING_DAYS           = int(os.environ.get("SWING_DAYS",       18))
 PROGRESS_N           = 50_000
 
 # play_time thresholds — NOTE: different units per field
+REDIS_HOST    = os.environ.get("REDIS_HOST", "10.151.208.35:6379")
+REDIS_PASS    = os.environ.get("REDIS_PASS", "")
+REDIS_KEY_TTL = int(os.environ.get("REDIS_KEY_TTL", 172800))   # 2 days
+REDIS_KEY_PFX = os.environ.get("REDIS_KEY_PREFIX", "swing:i2i")
+REDIS_PIPE_SZ = 500   # keys per pipeline batch
+
 TRIGGER_PT_S  = 10        # recent_games[].play_time unit is seconds
 TARGET_PT_MS  = 10_000    # context_info.playing_time unit is milliseconds
 
@@ -382,6 +390,38 @@ def upload_artifacts(index: dict, stats: dict, today: str, tmp: str) -> None:
 
 # ── main ──────────────────────────────────────────────────────────────────────
 
+def write_index_to_redis(index: dict) -> None:
+    host, port = REDIS_HOST.rsplit(":", 1)
+    client = redis_lib.Redis(
+        host=host,
+        port=int(port),
+        password=REDIS_PASS or None,
+        ssl=False,
+        socket_connect_timeout=5,
+        socket_timeout=10,
+    )
+    client.ping()
+
+    pipe = client.pipeline(transaction=False)
+    queued = 0
+    for game_id, neighbors in index.items():
+        key = f"{REDIS_KEY_PFX}:{game_id}"
+        mapping = {str(n["game_id"]): n["score"] for n in neighbors}
+        pipe.delete(key)
+        pipe.zadd(key, mapping)
+        pipe.expire(key, REDIS_KEY_TTL)
+        queued += 1
+        if queued % REDIS_PIPE_SZ == 0:
+            pipe.execute()
+            print(f"  flushed {queued}/{len(index)} keys")
+
+    if queued % REDIS_PIPE_SZ != 0:
+        pipe.execute()
+
+    print(f"  written {len(index):,} keys to Redis  (ttl={REDIS_KEY_TTL}s, prefix={REDIS_KEY_PFX})")
+    client.close()
+
+
 def main():
     train_days, eval_day = resolve_days()
     today = datetime.date.today().isoformat()
@@ -442,6 +482,9 @@ def main():
             "elapsed_sec": round(elapsed, 1),
         }
         upload_artifacts(index, stats, today, tmp)
+
+        print("\n[Step 6] Writing i2i index to Redis...")
+        write_index_to_redis(index)
 
     print(f"\ndone in {elapsed:.0f}s")
 
