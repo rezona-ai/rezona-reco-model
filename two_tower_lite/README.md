@@ -201,6 +201,36 @@ kubectl create job --from=cronjob/two-tower-lite-export-items export-$(date +%m%
 kubectl logs -f job/<job-name> -n production
 ```
 
+### ⚠️ 手动操作注意事项：vocab 版本对齐
+
+ranker 服务加载时需要三件套版本一致：**artifacts（vocab）/ ckpt / item_vectors 必须来自同一天**。
+
+**典型事故场景**：
+1. 手动提前跑了 export-items → item_vectors 来自昨天 ckpt
+2. 次日 03:00 features job 更新 vocab（game_id 词表扩大）
+3. 06:00 ranker 自动 refresh → 加载新 vocab + 旧 ckpt → `size mismatch` crash
+
+**规则**：手动触发 export-items 或 rollout restart ranker，必须确认当天的 train job 已完成，再按顺序 export → restart。不要在 features job（03:00）之后、train job（04:00）完成之前操作 ranker。
+
+**安全操作流程**：
+```bash
+# 确认今天的 train 已完成
+kubectl get jobs -n production | grep two-tower-lite-train
+
+# 手动 export（使用今天的 ckpt）
+DATE=$(date +%m%d%H%M)
+kubectl create job --from=cronjob/two-tower-lite-export-items "ttl-export-${DATE}" -n production
+kubectl wait --for=condition=complete --timeout=1800s job/ttl-export-${DATE} -n production
+
+# 再 restart ranker
+kubectl rollout restart deployment/two-tower-lite-ranker -n production
+kubectl rollout status deployment/two-tower-lite-ranker -n production
+```
+
+正常情况下无需手动干预，每天 **06:00 UTC** ranker 自动热加载当天三件套。
+
+---
+
 ### 手动触发 item 向量导出（独立 Job yaml）
 
 ```bash

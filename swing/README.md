@@ -112,13 +112,89 @@ gs://rezona-ml/swing/slim/YYYY-MM-DD.ndjson.gz     ← 18 天滚动缓存
   Swing 算法（Pass 1 → Pass 2 → Step 3）
         ▼
 gs://rezona-ml/swing/artifacts/YYYY-MM-DD/         ← 每天存档
-gs://rezona-ml/swing/artifacts/latest/             ← 最新版本（供线上读取）
+gs://rezona-ml/swing/artifacts/latest/             ← 最新版本
     ├── i2i_index.json          game_id → [{game_id, score, co_users}, ...]
     ├── i2i_index_simple.json   game_id → [game_id, ...]
     └── i2i_stats.json          构建统计
+        │
+        ▼
+Redis 10.151.208.35:6379  ← 每次构建后自动写入，TTL 2 天
+    swing:i2i:{game_id}   ZSET，score = 相似度，member = neighbor_game_id
 ```
 
 slim 数据与粗排（`two_tower_lite/slim/`）完全分开，互不干扰。
+
+---
+
+## Redis 接口
+
+### Key 格式
+
+```
+Key:    swing:i2i:{game_id}       e.g. swing:i2i:1234567
+Type:   ZSET
+Member: neighbor_game_id (string)
+Score:  similarity score (float64，越高越相似)
+TTL:    172800s（2 天，每日构建后刷新）
+```
+
+### Go 读取示例
+
+```go
+import "github.com/redis/go-redis/v9"
+
+rdb := redis.NewClient(&redis.Options{
+    Addr: "10.151.208.35:6379",
+})
+
+// 单个 trigger 取 top-K 邻居（按相似度从高到低）
+func getNeighbors(ctx context.Context, gameID int64, k int) ([]int64, error) {
+    key := fmt.Sprintf("swing:i2i:%d", gameID)
+    members, err := rdb.ZRevRange(ctx, key, 0, int64(k-1)).Result()
+    if err != nil {
+        return nil, err
+    }
+    ids := make([]int64, 0, len(members))
+    for _, m := range members {
+        id, _ := strconv.ParseInt(m, 10, 64)
+        ids = append(ids, id)
+    }
+    return ids, nil
+}
+
+// 多个 trigger：pipeline 批量拉取，应用层 merge 取 top-N
+func getNeighborsBatch(ctx context.Context, triggers []int64, k, topN int) ([]int64, error) {
+    pipe := rdb.Pipeline()
+    cmds := make([]*redis.StringSliceCmd, len(triggers))
+    for i, gid := range triggers {
+        key := fmt.Sprintf("swing:i2i:%d", gid)
+        cmds[i] = pipe.ZRevRange(ctx, key, 0, int64(k-1))
+    }
+    if _, err := pipe.Exec(ctx); err != nil && err != redis.Nil {
+        return nil, err
+    }
+
+    // merge：同一邻居出现多次时保留（去重即可，score 已在写入时排好）
+    seen := make(map[int64]struct{})
+    var result []int64
+    for _, cmd := range cmds {
+        for _, m := range cmd.Val() {
+            id, _ := strconv.ParseInt(m, 10, 64)
+            if _, ok := seen[id]; !ok {
+                seen[id] = struct{}{}
+                result = append(result, id)
+            }
+        }
+    }
+    if len(result) > topN {
+        result = result[:topN]
+    }
+    return result, nil
+}
+```
+
+> **注意**：多 trigger merge 使用 pipeline（一次 RTT），不要串行 ZRevRange。
+> merge 策略为去重后按首次出现顺序截断，等价于"相似度最高的 trigger 优先"（因为每个 ZSET 内已按分数降序）。
 
 ---
 
