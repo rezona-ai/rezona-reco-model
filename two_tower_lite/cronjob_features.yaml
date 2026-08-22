@@ -32,7 +32,7 @@ spec:
             - name: BQ_PROJECT
               value: "rezonaai"
             - name: BQ_TABLE
-              value: "rezonaai.datalake.reco_labeled_log_flat"
+              value: "rezonaai.dwd.dwd_interaction_reco_labeled_item_di"
             - name: BQ_WHERE
               value: "context_info.realshow = TRUE"
             # TRAIN_DAYS / TEST_DAYS 留空 → 自动滚动窗口（最近13天/昨天）

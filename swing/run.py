@@ -25,7 +25,7 @@ Env vars:
   GCS_EVAL_PREFIX         default: swing/eval
   GCS_ARTIFACTS_PREFIX    default: swing/artifacts
   BQ_PROJECT              default: rezonaai
-  BQ_TABLE                default: rezonaai.datalake.reco_labeled_log_flat
+  BQ_TABLE                default: rezonaai.dwd.dwd_interaction_reco_labeled_item_di
   BQ_PARTITION_COL        default: dt
   BQ_WHERE                default: context_info.realshow = TRUE
   BQ_TIMEOUT_SEC          default: 1800
@@ -55,7 +55,7 @@ GCS_SLIM_PREFIX      = os.environ.get("GCS_SLIM_PREFIX",      "swing/slim")
 GCS_EVAL_PREFIX      = os.environ.get("GCS_EVAL_PREFIX",      "swing/eval")
 GCS_ARTIFACTS_PREFIX = os.environ.get("GCS_ARTIFACTS_PREFIX", "swing/artifacts")
 BQ_PROJECT           = os.environ.get("BQ_PROJECT",           "rezonaai")
-BQ_TABLE             = os.environ.get("BQ_TABLE",             "rezonaai.datalake.reco_labeled_log_flat")
+BQ_TABLE             = os.environ.get("BQ_TABLE",             "rezonaai.dwd.dwd_interaction_reco_labeled_item_di")
 BQ_PART_COL          = os.environ.get("BQ_PARTITION_COL",     "dt")
 BQ_WHERE             = os.environ.get("BQ_WHERE",             "context_info.realshow = TRUE").strip()
 BQ_TIMEOUT           = int(os.environ.get("BQ_TIMEOUT_SEC",   1800))

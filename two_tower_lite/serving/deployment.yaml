@@ -4,7 +4,7 @@ metadata:
   name: two-tower-lite-ranker
   namespace: production
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: two-tower-lite-ranker
@@ -71,7 +71,7 @@ metadata:
 spec:
   selector:
     app: two-tower-lite-ranker
-  type: ClusterIP
+  clusterIP: None
   ports:
   - name: grpc
     port: 50051
