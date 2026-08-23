@@ -9,7 +9,7 @@ Env vars:
   GCS_ITEM_VECTORS_PREFIX   e.g. two_tower_lite/item_vectors
   GRPC_PORT                 default 50051
   GRPC_WORKERS              default 4
-  REFRESH_ENABLED           default true  (daily 6am refresh)
+  REFRESH_ENABLED           default true  (daily 7am refresh)
 
   # local dev only (GCS_BUCKET unset)
   ART_DIR                   path to artifacts/ dir (config.json, vocab.json)
@@ -162,9 +162,9 @@ def _build_bundle_local() -> ServingBundle:
 
 # ── refresh scheduling ────────────────────────────────────────────────────────
 
-def _seconds_until_6am() -> float:
+def _seconds_until_7am() -> float:
     now    = datetime.datetime.now()
-    target = now.replace(hour=6, minute=0, second=0, microsecond=0)
+    target = now.replace(hour=7, minute=0, second=0, microsecond=0)
     if now >= target:
         target += datetime.timedelta(days=1)
     return (target - now).total_seconds()
@@ -197,8 +197,8 @@ class TwoTowerRankerServicer(twotower_ranker_pb2_grpc.TwoTowerRankerServiceServi
 
     def _refresh_loop(self) -> None:
         while True:
-            wait = _seconds_until_6am()
-            log.info("next bundle refresh at 06:00 (%.0fs from now)", wait)
+            wait = _seconds_until_7am()
+            log.info("next bundle refresh at 07:00 (%.0fs from now)", wait)
             time.sleep(wait)
 
             today = datetime.date.today().isoformat()
