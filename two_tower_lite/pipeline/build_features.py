@@ -62,22 +62,33 @@ NUM_FEATURES = [
 
 # ── GCS download ──────────────────────────────────────────────────────────────
 
-def download_slim_days(days: list, local_dir: str) -> None:
+def download_slim_days(days: list, local_dir: str) -> list:
+    """Download slim files; returns list of days actually available (skips missing)."""
+    from google.api_core.exceptions import NotFound
     bucket = gcs_lib.Client().bucket(GCS_BUCKET)
     os.makedirs(local_dir, exist_ok=True)
     print(f"[download] fetching {len(days)} slim files...")
+    available = []
     for day in days:
         blob_name  = f"{GCS_SLIM_PREFIX}/{day}.ndjson.gz"
         local_path = os.path.join(local_dir, f"{day}.ndjson.gz")
         if os.path.exists(local_path):
+            available.append(day)
             continue
-        bucket.blob(blob_name).download_to_filename(local_path)
-        print(f"  ↓ {day}.ndjson.gz  ({os.path.getsize(local_path)/1e6:.1f}MB)", flush=True)
+        try:
+            bucket.blob(blob_name).download_to_filename(local_path)
+            print(f"  ↓ {day}.ndjson.gz  ({os.path.getsize(local_path)/1e6:.1f}MB)", flush=True)
+            available.append(day)
+        except NotFound:
+            print(f"  skip {day}: no slim file in GCS (0-row day)", flush=True)
+    return available
 
 
 def iter_rows(days: list, local_dir: str):
     for day in days:
         path = os.path.join(local_dir, f"{day}.ndjson.gz")
+        if not os.path.exists(path):
+            continue
         with gzip.open(path, "rb") as f:
             for line in f:
                 if line.strip():
@@ -98,7 +109,7 @@ def numeric_row(rec):
 
 # ── pass 1: vocab + numeric stats (train only) ────────────────────────────────
 
-def build_vocab(local_dir: str):
+def build_vocab(local_dir: str, train_days: list):
     from collections import defaultdict
     counts   = defaultdict(lambda: defaultdict(int))
     num_sum  = np.zeros(len(NUM_FEATURES))
@@ -106,7 +117,7 @@ def build_vocab(local_dir: str):
     num_cnt  = np.zeros(len(NUM_FEATURES))
     n_rows   = 0
 
-    for rec in iter_rows(TRAIN_DAYS, local_dir):
+    for rec in iter_rows(train_days, local_dir):
         n_rows += 1
         for slim_key, _feat, _tower, vocab in CAT_SINGLE:
             t = norm_token(rec.get(slim_key))
@@ -187,10 +198,16 @@ def main():
     os.makedirs(OUT_DIR, exist_ok=True)
     import tempfile
     with tempfile.TemporaryDirectory() as slim_dir:
-        download_slim_days(TRAIN_DAYS + TEST_DAYS, slim_dir)
+        available = set(download_slim_days(TRAIN_DAYS + TEST_DAYS, slim_dir))
+        train_days = [d for d in TRAIN_DAYS if d in available]
+        test_days  = [d for d in TEST_DAYS  if d in available]
+        if not train_days:
+            print("ERROR: no train days available, aborting"); sys.exit(1)
+        if not test_days:
+            print("ERROR: no test days available, aborting"); sys.exit(1)
 
-        print(f"\n[pass 1] building vocab from train days: {TRAIN_DAYS}")
-        vocab, sizes, num_mean, num_std = build_vocab(slim_dir)
+        print(f"\n[pass 1] building vocab from train days: {train_days}")
+        vocab, sizes, num_mean, num_std = build_vocab(slim_dir, train_days)
 
         config = {
             "cat_single": [{"feat": feat, "tower": tower, "vocab": vname, "size": sizes[vname]}
@@ -205,7 +222,7 @@ def main():
         with open(os.path.join(OUT_DIR, "vocab.json"), "wb") as f:
             f.write(orjson.dumps({k: {str(tk): iv for tk, iv in m.items()} for k, m in vocab.items()}))
 
-        for split_name, days in [("train", TRAIN_DAYS), ("test", TEST_DAYS)]:
+        for split_name, days in [("train", train_days), ("test", test_days)]:
             print(f"\n[pass 2] encoding {split_name} ({len(days)} days)...")
             encode_split(days, slim_dir, vocab, num_mean, num_std, split_name)
 
