@@ -19,7 +19,7 @@ Env vars:
   GCS_CKPT_PREFIX            e.g. two_tower_lite/ckpts
   GCS_ITEM_VECTORS_PREFIX    e.g. two_tower_lite/item_vectors  (default)
   BQ_PROJECT                 default: rezonaai
-  BQ_TABLE                   default: rezonaai.ads.ads_game_info_df_view
+  BQ_TABLE                   default: gtxy-rzn-infra.ads.ads_game_info_df_view
 """
 import os, sys, json, math, datetime, tempfile
 from pathlib import Path
@@ -42,8 +42,8 @@ GCS_BUCKET              = os.environ["GCS_BUCKET"]
 GCS_ARTIFACTS_PREFIX    = os.environ["GCS_ARTIFACTS_PREFIX"]
 GCS_CKPT_PREFIX         = os.environ["GCS_CKPT_PREFIX"]
 GCS_ITEM_VECTORS_PREFIX = os.environ.get("GCS_ITEM_VECTORS_PREFIX", "two_tower_lite/item_vectors")
-BQ_PROJECT              = os.environ.get("BQ_PROJECT", "rezonaai")
-BQ_TABLE                = os.environ.get("BQ_TABLE", "rezonaai.ads.ads_game_info_df_view")
+BQ_PROJECT              = os.environ.get("BQ_PROJECT", "gtxy-rzn-infra")
+BQ_TABLE                = os.environ.get("BQ_TABLE", "gtxy-rzn-infra.ads.ads_game_info_df_view")
 
 PAD, OOV = 0, 1
 

@@ -18,7 +18,7 @@ spec:
 
           containers:
           - name: features
-            image: us-east1-docker.pkg.dev/rezonaai/reco-model/ml-trainer:latest
+            image: us-east1-docker.pkg.dev/gtxy-rzn-infra/reco-model/ml-trainer:latest
             imagePullPolicy: Always
             command: ["python", "/app/two_tower_lite/pull_and_build.py"]
 
@@ -30,9 +30,9 @@ spec:
             - name: GCS_RAW_PREFIX
               value: "two_tower_lite/raw"
             - name: BQ_PROJECT
-              value: "rezonaai"
+              value: "gtxy-rzn-infra"
             - name: BQ_TABLE
-              value: "rezonaai.dwd.dwd_interaction_reco_labeled_item_di"
+              value: "gtxy-rzn-infra.dwd.dwd_interaction_reco_labeled_item_di"
             - name: BQ_WHERE
               value: "context_info.realshow = TRUE"
             # TRAIN_DAYS / TEST_DAYS 留空 → 自动滚动窗口（最近13天/昨天）

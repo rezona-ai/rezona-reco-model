@@ -22,7 +22,7 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
       - name: ranker
-        image: us-east1-docker.pkg.dev/rezonaai/reco-model/ml-trainer:latest
+        image: us-east1-docker.pkg.dev/gtxy-rzn-infra/reco-model/ml-trainer:latest
         imagePullPolicy: Always
         command: ["python", "/app/two_tower_lite/serving/server.py"]
         env:

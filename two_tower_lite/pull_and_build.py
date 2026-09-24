@@ -15,7 +15,7 @@ Env vars:
   GCS_SLIM_PREFIX         e.g. two_tower_lite/slim   (default)
   GCS_RAW_PREFIX          e.g. two_tower_lite/raw    (migration: slim from existing raw)
   BQ_PROJECT              default: rezonaai
-  BQ_TABLE                default: rezonaai.dwd.dwd_interaction_reco_labeled_item_di
+  BQ_TABLE                default: gtxy-rzn-infra.dwd.dwd_interaction_reco_labeled_item_di
   BQ_WHERE                default: context_info.realshow = TRUE
   BQ_LIMIT                max rows per day, 0=unlimited
   BQ_TIMEOUT_SEC          default: 1800
@@ -31,8 +31,8 @@ import orjson
 REPO_ROOT = Path(__file__).resolve().parent
 
 # ── config ────────────────────────────────────────────────────────────────────
-BQ_PROJECT   = os.environ.get("BQ_PROJECT", "rezonaai")
-BQ_TABLE     = os.environ.get("BQ_TABLE", "rezonaai.dwd.dwd_interaction_reco_labeled_item_di")
+BQ_PROJECT   = os.environ.get("BQ_PROJECT", "gtxy-rzn-infra")
+BQ_TABLE     = os.environ.get("BQ_TABLE", "gtxy-rzn-infra.dwd.dwd_interaction_reco_labeled_item_di")
 BQ_PART_COL  = os.environ.get("BQ_PARTITION_COL", "dt")
 BQ_WHERE     = os.environ.get("BQ_WHERE", "context_info.realshow = TRUE").strip()
 BQ_LIMIT     = int(os.environ.get("BQ_LIMIT", 0))
