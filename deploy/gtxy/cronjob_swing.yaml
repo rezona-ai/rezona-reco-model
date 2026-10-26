@@ -37,8 +37,8 @@ spec:
               value: "context_info.realshow = TRUE"
             - name: SWING_DAYS
               value: "18"
-            # ⚠️ docs/28 坑1:swing/run.py 的 REDIS_HOST 默认硬编码旧地址 10.151.208.35,
-            # 原 cronjob 未设此 env → 迁移必须显式指向新项目 reco-redis(feature_redis)。
+            # ⚠️ docs/28 坑1:swing/run.py 的 REDIS_HOST 默认值曾硬编码旧地址 10.151.208.35(已改为新地址),
+            # 仍显式设置,不依赖镜像内默认值 → 指向新项目 reco-redis(feature_redis)。
             - name: REDIS_HOST
               value: "10.97.68.75:6379"
 
@@ -46,6 +46,8 @@ spec:
               requests:
                 cpu: "2"
                 memory: "8Gi"
+                ephemeral-storage: "10Gi"   # GKE Autopilot 默认仅 1Gi;swing 需下载 ~1.7GB slim 到本地,须显式放大
               limits:
                 cpu: "4"
                 memory: "16Gi"
+                ephemeral-storage: "10Gi"

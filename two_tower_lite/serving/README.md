@@ -154,7 +154,7 @@ score     req=2081 hit=2081 hit_rate=1.000 mean_score=0.4887  user_id=21249658 c
 
 ## 每日模型刷新
 
-item vector 每日由 `export_item_vectors.py`（CronJob 05:00 UTC）更新至 GCS：
+item vector 每日由 `export_item_vectors.py`（CronJob 06:00 UTC）更新至 GCS：
 
 ```
 gs://rezona-ml/two_tower_lite/item_vectors/YYYY-MM-DD/
@@ -163,7 +163,7 @@ gs://rezona-ml/two_tower_lite/item_vectors/YYYY-MM-DD/
 ```
 
 服务内置后台刷新线程（`_refresh_loop`）：
-- 每天 **06:00 UTC**（北京时间 14:00）触发检查
+- 每天 **07:00 UTC**（北京时间 15:00）触发检查
 - 启动时通过 `_find_ready_date()` 找最新的、ckpt + item_vecs **同时就绪**的日期，若当天 export 未完成自动回退到前一天
 - 就绪后下载新 bundle，**原子替换** `_bundle` 引用（Python GIL 保证引用赋值原子性）
 - 刷新期间正在处理的请求持有旧 bundle 引用，不受影响
@@ -214,8 +214,8 @@ gs://rezona-ml/two_tower_lite/item_vectors/YYYY-MM-DD/
 # macOS 需指定 Python 3.10+（gcloud 依赖）
 export CLOUDSDK_PYTHON=$(brew --prefix python@3.11)/bin/python3.11
 
-gcloud builds submit \
-  --tag us-east1-docker.pkg.dev/rezonaai/reco-model/ml-trainer:latest \
+gcloud builds submit --project gtxy-rzn-infra \
+  --tag us-east1-docker.pkg.dev/gtxy-rzn-infra/reco-model/ml-trainer:latest \
   --machine-type=e2-highcpu-8 \
   .
 ```

@@ -1,4 +1,19 @@
-# reco-model 迁移到 gtxy-rzn-infra —— 阶段1(离线链路影子)
+# reco-model 在 gtxy-rzn-infra 的部署清单
+
+## 当前状态(2026-10-26 影子转正)
+
+- **本目录是生产唯一清单来源**,`./deploy.sh` 只 apply 本目录到新集群 `gke_gtxy-rzn-infra_us-east1_autopilot-cluster-1`。
+  `two_tower_lite/*.yaml`、`swing/cronjob_swing.yaml` 与本目录内容保持一致,仅作历史保留,不要单独 apply。
+- 新集群 `production` 跑:`two-tower-lite-features`(03:00 UTC)→ `two-tower-lite-train`(04:00)→ `two-tower-lite-export-items`(06:00)→ ranker 07:00 UTC 热加载;`swing-i2i-build`(04:30)。
+- 旧集群 `gke_rezonaai_us-east1_autopilot-cluster-1` 的 4 个 CronJob(features/train/export-items/swing)已于 2026-10-26 **suspend**,ranker 早已 0/0。
+- 事故背景:9-23 新集群 features 是从**未提交的本地 yaml** apply 的(写影子前缀 `_shadow_gtxy/`),train/export 未在新集群部署;旧集群 features 读旧项目 BQ(9-21 后冻结)每天失败,
+  导致生产词表停在 9-22、游戏集合停在 9-21,9-22 后的新游戏 `predict_ctr` 全为 0,持续约 5 周。修复操作见 2026-10-26 TwoTower 修复 runbook。
+- `gs://rezona-ml/_shadow_gtxy/` 已退役,`gs://rezona-ml/_backup_20261026/` 为修复前生产三件套备份;稳定运行 2 周后清理两者。
+- **线上改动必须同步提交本目录**,否则下次 `deploy.sh` 会把线上改回去。
+
+---
+
+## 迁移记录(docs/28 阶段1,2026-09-23)
 
 docs/28 阶段1。本目录是**改造 overlay**,原文件(`two_tower_lite/*`、`swing/*`)不动,便于对比与回滚(删本目录即回退)。
 

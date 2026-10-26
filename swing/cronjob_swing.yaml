@@ -18,7 +18,7 @@ spec:
 
           containers:
           - name: swing
-            image: us-east1-docker.pkg.dev/rezonaai/reco-model/ml-trainer:latest
+            image: us-east1-docker.pkg.dev/gtxy-rzn-infra/reco-model/ml-trainer:latest
             imagePullPolicy: Always
             command: ["python", "/app/swing/run.py"]
 
@@ -30,18 +30,24 @@ spec:
             - name: GCS_ARTIFACTS_PREFIX
               value: "swing/artifacts"
             - name: BQ_PROJECT
-              value: "rezonaai"
+              value: "gtxy-rzn-infra"
             - name: BQ_TABLE
-              value: "rezonaai.dwd.dwd_interaction_reco_labeled_item_di"
+              value: "gtxy-rzn-infra.dwd.dwd_interaction_reco_labeled_item_di"
             - name: BQ_WHERE
               value: "context_info.realshow = TRUE"
             - name: SWING_DAYS
               value: "18"
+            # ⚠️ docs/28 坑1:swing/run.py 的 REDIS_HOST 默认值曾硬编码旧地址 10.151.208.35(已改为新地址),
+            # 仍显式设置,不依赖镜像内默认值 → 指向新项目 reco-redis(feature_redis)。
+            - name: REDIS_HOST
+              value: "10.97.68.75:6379"
 
             resources:
               requests:
                 cpu: "2"
                 memory: "8Gi"
+                ephemeral-storage: "10Gi"   # GKE Autopilot 默认仅 1Gi;swing 需下载 ~1.7GB slim 到本地,须显式放大
               limits:
                 cpu: "4"
                 memory: "16Gi"
+                ephemeral-storage: "10Gi"
