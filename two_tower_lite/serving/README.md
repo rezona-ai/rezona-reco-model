@@ -154,7 +154,7 @@ score     req=2081 hit=2081 hit_rate=1.000 mean_score=0.4887  user_id=21249658 c
 
 ## 每日模型刷新
 
-item vector 每日由 `export_item_vectors.py`（CronJob 06:00 UTC）更新至 GCS：
+item vector 每日由 `export_item_vectors.py`（CronJob 07:15 UTC）更新至 GCS：
 
 ```
 gs://rezona-ml/two_tower_lite/item_vectors/YYYY-MM-DD/
