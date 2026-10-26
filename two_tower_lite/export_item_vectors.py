@@ -18,7 +18,7 @@ Env vars:
   GCS_ARTIFACTS_PREFIX       e.g. two_tower_lite/artifacts
   GCS_CKPT_PREFIX            e.g. two_tower_lite/ckpts
   GCS_ITEM_VECTORS_PREFIX    e.g. two_tower_lite/item_vectors  (default)
-  BQ_PROJECT                 default: rezonaai
+  BQ_PROJECT                 default: gtxy-rzn-infra
   BQ_TABLE                   default: gtxy-rzn-infra.ads.ads_game_info_df_view
 """
 import os, sys, json, math, datetime, tempfile

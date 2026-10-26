@@ -24,8 +24,8 @@ Env vars:
   GCS_SLIM_PREFIX         default: swing/slim
   GCS_EVAL_PREFIX         default: swing/eval
   GCS_ARTIFACTS_PREFIX    default: swing/artifacts
-  BQ_PROJECT              default: rezonaai
-  BQ_TABLE                default: rezonaai.dwd.dwd_interaction_reco_labeled_item_di
+  BQ_PROJECT              default: gtxy-rzn-infra
+  BQ_TABLE                default: gtxy-rzn-infra.dwd.dwd_interaction_reco_labeled_item_di
   BQ_PARTITION_COL        default: dt
   BQ_WHERE                default: context_info.realshow = TRUE
   BQ_TIMEOUT_SEC          default: 1800
@@ -54,8 +54,8 @@ GCS_BUCKET           = os.environ["GCS_BUCKET"]
 GCS_SLIM_PREFIX      = os.environ.get("GCS_SLIM_PREFIX",      "swing/slim")
 GCS_EVAL_PREFIX      = os.environ.get("GCS_EVAL_PREFIX",      "swing/eval")
 GCS_ARTIFACTS_PREFIX = os.environ.get("GCS_ARTIFACTS_PREFIX", "swing/artifacts")
-BQ_PROJECT           = os.environ.get("BQ_PROJECT",           "rezonaai")
-BQ_TABLE             = os.environ.get("BQ_TABLE",             "rezonaai.dwd.dwd_interaction_reco_labeled_item_di")
+BQ_PROJECT           = os.environ.get("BQ_PROJECT",           "gtxy-rzn-infra")
+BQ_TABLE             = os.environ.get("BQ_TABLE",             "gtxy-rzn-infra.dwd.dwd_interaction_reco_labeled_item_di")
 BQ_PART_COL          = os.environ.get("BQ_PARTITION_COL",     "dt")
 BQ_WHERE             = os.environ.get("BQ_WHERE",             "context_info.realshow = TRUE").strip()
 BQ_TIMEOUT           = int(os.environ.get("BQ_TIMEOUT_SEC",   1800))
@@ -63,7 +63,7 @@ SWING_DAYS           = int(os.environ.get("SWING_DAYS",       18))
 PROGRESS_N           = 50_000
 
 # play_time thresholds — NOTE: different units per field
-REDIS_HOST    = os.environ.get("REDIS_HOST", "10.151.208.35:6379")
+REDIS_HOST    = os.environ.get("REDIS_HOST", "10.97.68.75:6379")
 REDIS_PASS    = os.environ.get("REDIS_PASS", "")
 REDIS_KEY_TTL = int(os.environ.get("REDIS_KEY_TTL", 172800))   # 2 days
 REDIS_KEY_PFX = os.environ.get("REDIS_KEY_PREFIX", "swing:i2i")

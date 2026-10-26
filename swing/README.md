@@ -267,8 +267,8 @@ kubectl logs -f job/swing-now-${DATE} -n production
 | `GCS_BUCKET` | **必填** | e.g. `rezona-ml` |
 | `GCS_SLIM_PREFIX` | `swing/slim` | slim 缓存路径 |
 | `GCS_ARTIFACTS_PREFIX` | `swing/artifacts` | 产物输出路径 |
-| `BQ_PROJECT` | `rezonaai` | BigQuery 项目 |
-| `BQ_TABLE` | `rezonaai.datalake.reco_labeled_log_flat` | 数据源表 |
+| `BQ_PROJECT` | `gtxy-rzn-infra` | BigQuery 项目 |
+| `BQ_TABLE` | `gtxy-rzn-infra.dwd.dwd_interaction_reco_labeled_item_di` | 数据源表 |
 | `BQ_WHERE` | `context_info.realshow = TRUE` | 过滤条件 |
 | `SWING_DAYS` | `18` | 滚动窗口天数 |
 

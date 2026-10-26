@@ -14,7 +14,7 @@ Env vars:
   GCS_ARTIFACTS_PREFIX    e.g. two_tower_lite/artifacts
   GCS_SLIM_PREFIX         e.g. two_tower_lite/slim   (default)
   GCS_RAW_PREFIX          e.g. two_tower_lite/raw    (migration: slim from existing raw)
-  BQ_PROJECT              default: rezonaai
+  BQ_PROJECT              default: gtxy-rzn-infra
   BQ_TABLE                default: gtxy-rzn-infra.dwd.dwd_interaction_reco_labeled_item_di
   BQ_WHERE                default: context_info.realshow = TRUE
   BQ_LIMIT                max rows per day, 0=unlimited

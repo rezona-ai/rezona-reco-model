@@ -6,7 +6,7 @@
 BigQuery (reco_labeled_log_flat)
   └─[pull_and_build.py 03:00 UTC]─→ GCS two_tower_lite/
                                           └─[train_gcs.py 04:00 UTC]─→ GCS ckpts/
-                                                                              └─[export_item_vectors.py 05:00 UTC]─→ GCS item_vectors/
+                                                                              └─[export_item_vectors.py 06:00 UTC]─→ GCS item_vectors/
 ```
 
 ---
@@ -15,7 +15,7 @@ BigQuery (reco_labeled_log_flat)
 
 ### 训练架构（每日三步定时任务）
 
-三个 Kubernetes CronJob 通过 GCS 解耦：特征任务 03:00 UTC（北京 11:00）→ 训练任务 04:00 UTC（北京 12:00）→ item 向量导出 05:00 UTC（北京 13:00）。`concurrencyPolicy: Forbid` 保证不重叠。
+三个 Kubernetes CronJob 通过 GCS 解耦：特征任务 03:00 UTC（北京 11:00）→ 训练任务 04:00 UTC（北京 12:00）→ item 向量导出 06:00 UTC（北京 14:00）→ ranker 07:00 UTC（北京 15:00）热加载。`concurrencyPolicy: Forbid` 保证不重叠。
 
 ```mermaid
 flowchart TD
@@ -26,7 +26,7 @@ flowchart TD
     ART["GCS artifacts / latest<br/>train.npz · test.npz · config.json · vocab.json"]
     J2["Job 2 · train_gcs.py<br/>cron 04:00 UTC · 2 epochs · bs 4096 · lr 3e-3"]
     CKPT["GCS ckpts / YYYY-MM-DD<br/>best.pt · ep0.pt · ep1.pt · curves.png"]
-    J3["Job 3 · export_item_vectors.py<br/>cron 05:00 UTC · item emb 离线推理"]
+    J3["Job 3 · export_item_vectors.py<br/>cron 06:00 UTC · item emb 离线推理"]
     VEC["GCS item_vectors / YYYY-MM-DD<br/>item_vectors.npy · game_ids.json · emb_analysis.png"]
     BQ --> J1 --> SLIM --> J1 --> ART --> J2 --> CKPT --> J3
     BQADS --> J3 --> VEC
@@ -109,7 +109,7 @@ flowchart TD
 ├── Dockerfile                  # CPU-only torch，三个 Job 共用同一镜像
 ├── cronjob_features.yaml       # Job 1 CronJob（03:00 UTC = 北京 11:00）
 ├── cronjob.yaml                # Job 2 CronJob（04:00 UTC = 北京 12:00）
-├── cronjob_export_items.yaml   # Job 3 CronJob（05:00 UTC = 北京 13:00）
+├── cronjob_export_items.yaml   # Job 3 CronJob（06:00 UTC = 北京 14:00）
 ├── job_export_items.yaml       # Job 3 临时 Job yaml（手动触发用）
 ├── deploy.sh                   # Cloud Build 编译 + push + kubectl apply
 └── requirements.txt            # Python 依赖（不含 torch，Dockerfile 单独装）
@@ -155,7 +155,7 @@ gs://rezona-ml/
 | K8s ServiceAccount `recoleaf` | ✅ 复用 | production namespace |
 | `recoleaf-kafka-writer` → GCS | ✅ objectAdmin | 可读写 `gs://rezona-ml` |
 | `recoleaf-kafka-writer` → BQ | ✅ dataViewer + jobUser | 可查询源表及 ads 表 |
-| Artifact Registry `reco-model` | ✅ 已创建 | `us-east1-docker.pkg.dev/rezonaai/reco-model/` |
+| Artifact Registry `reco-model` | ✅ 已创建 | `us-east1-docker.pkg.dev/gtxy-rzn-infra/reco-model/` |
 
 ---
 
@@ -164,8 +164,8 @@ gs://rezona-ml/
 ### 1. 编译镜像
 
 ```bash
-gcloud builds submit \
-  --tag us-east1-docker.pkg.dev/rezonaai/reco-model/ml-trainer:latest \
+gcloud builds submit --project gtxy-rzn-infra \
+  --tag us-east1-docker.pkg.dev/gtxy-rzn-infra/reco-model/ml-trainer:latest \
   --machine-type=e2-highcpu-8 \
   .
 ```
@@ -208,7 +208,7 @@ ranker 服务加载时需要三件套版本一致：**artifacts（vocab）/ ckpt
 **典型事故场景**：
 1. 手动提前跑了 export-items → item_vectors 来自昨天 ckpt
 2. 次日 03:00 features job 更新 vocab（game_id 词表扩大）
-3. 06:00 ranker 自动 refresh → 加载新 vocab + 旧 ckpt → `size mismatch` crash
+3. 07:00 ranker 自动 refresh → 加载新 vocab + 旧 ckpt → `size mismatch` crash
 
 **规则**：手动触发 export-items 或 rollout restart ranker，必须确认当天的 train job 已完成，再按顺序 export → restart。不要在 features job（03:00）之后、train job（04:00）完成之前操作 ranker。
 
@@ -227,7 +227,7 @@ kubectl rollout restart deployment/two-tower-lite-ranker -n production
 kubectl rollout status deployment/two-tower-lite-ranker -n production
 ```
 
-正常情况下无需手动干预，每天 **06:00 UTC** ranker 自动热加载当天三件套。
+正常情况下无需手动干预，每天 **07:00 UTC** ranker 自动热加载当天三件套（未就绪每 5 分钟重试，最多 1 小时）。
 
 ---
 
@@ -272,8 +272,8 @@ gsutil cp ${LATEST_VEC}emb_analysis.png ./
 | `GCS_BUCKET` | **必填** | GCS bucket 名称 |
 | `GCS_ARTIFACTS_PREFIX` | **必填** | artifacts 上传前缀 |
 | `GCS_SLIM_PREFIX` | `two_tower_lite/slim` | per-day slim ndjson.gz 缓存前缀 |
-| `BQ_PROJECT` | `rezonaai` | GCP 项目 |
-| `BQ_TABLE` | `rezonaai.datalake.reco_labeled_log_flat` | BQ 表 |
+| `BQ_PROJECT` | `gtxy-rzn-infra` | GCP 项目 |
+| `BQ_TABLE` | `gtxy-rzn-infra.dwd.dwd_interaction_reco_labeled_item_di` | BQ 表 |
 | `BQ_WHERE` | `context_info.realshow = TRUE` | 额外过滤条件 |
 | `BQ_LIMIT` | `0`（不限）| 每天最大行数，调试用 |
 | `TRAIN_DAYS` | 自动（today-14 到 today-2）| 逗号分隔日期，覆盖自动推算 |
@@ -299,8 +299,8 @@ gsutil cp ${LATEST_VEC}emb_analysis.png ./
 | `GCS_ARTIFACTS_PREFIX` | **必填** | config/vocab 读取前缀 |
 | `GCS_CKPT_PREFIX` | **必填** | ckpt 读取前缀（自动取最新日期）|
 | `GCS_ITEM_VECTORS_PREFIX` | `two_tower_lite/item_vectors` | 输出前缀 |
-| `BQ_PROJECT` | `rezonaai` | GCP 项目 |
-| `BQ_TABLE` | `rezonaai.ads.ads_game_info_df_view` | 游戏信息表 |
+| `BQ_PROJECT` | `gtxy-rzn-infra` | GCP 项目 |
+| `BQ_TABLE` | `gtxy-rzn-infra.ads.ads_game_info_df_view` | 游戏信息表 |
 
 ### build_features.py 内部参数
 
