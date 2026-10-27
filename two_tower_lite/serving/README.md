@@ -157,7 +157,7 @@ score     req=2081 hit=2081 hit_rate=1.000 mean_score=0.4887  user_id=21249658 c
 item vector 每日由 `export_item_vectors.py`（CronJob 07:15 UTC）更新至 GCS：
 
 ```
-gs://rezona-ml/two_tower_lite/item_vectors/YYYY-MM-DD/
+gs://rzn-rezona-ml/two_tower_lite/item_vectors/YYYY-MM-DD/
     item_vectors.npy
     game_ids.json
 ```
@@ -188,7 +188,7 @@ gs://rezona-ml/two_tower_lite/item_vectors/YYYY-MM-DD/
 
 | 变量 | 默认值 | 说明 |
 |---|---|---|
-| `GCS_BUCKET` | **必填** | GCS bucket 名称，e.g. `rezona-ml` |
+| `GCS_BUCKET` | **必填** | GCS bucket 名称，e.g. `rzn-rezona-ml` |
 | `GCS_ARTIFACTS_PREFIX` | `two_tower_lite/artifacts` | 读取 `config.json` / `vocab.json` |
 | `GCS_CKPT_PREFIX` | `two_tower_lite/ckpts` | 读取 `two_tower_lite_best.pt` |
 | `GCS_ITEM_VECTORS_PREFIX` | `two_tower_lite/item_vectors` | 读取 `item_vectors.npy` / `game_ids.json` |

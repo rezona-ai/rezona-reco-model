@@ -10,7 +10,7 @@ Slim 格式比原始 ndjson 小约 50x（~20 MB/天 vs ~1.5 GB/天），
 build 阶段下载所有天约几百 MB，无需流式读大文件。
 
 Env vars:
-  GCS_BUCKET              e.g. rezona-ml
+  GCS_BUCKET              e.g. rzn-rezona-ml
   GCS_ARTIFACTS_PREFIX    e.g. two_tower_lite/artifacts
   GCS_SLIM_PREFIX         e.g. two_tower_lite/slim   (default)
   GCS_RAW_PREFIX          e.g. two_tower_lite/raw    (migration: slim from existing raw)

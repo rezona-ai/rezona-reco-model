@@ -8,7 +8,7 @@
 - 旧集群 `gke_rezonaai_us-east1_autopilot-cluster-1` 的 4 个 CronJob(features/train/export-items/swing)已于 2026-10-26 **suspend**,ranker 早已 0/0。
 - 事故背景:9-23 新集群 features 是从**未提交的本地 yaml** apply 的(写影子前缀 `_shadow_gtxy/`),train/export 未在新集群部署;旧集群 features 读旧项目 BQ(9-21 后冻结)每天失败,
   导致生产词表停在 9-22、游戏集合停在 9-21,9-22 后的新游戏 `predict_ctr` 全为 0,持续约 5 周。修复操作见 2026-10-26 TwoTower 修复 runbook。
-- `gs://rezona-ml/_shadow_gtxy/` 已退役,`gs://rezona-ml/_backup_20261026/` 为修复前生产三件套备份;稳定运行 2 周后清理两者。
+- 2026-10-27 模型桶从旧项目 `gs://rezona-ml` 迁到新项目 `gs://rzn-rezona-ml`(路径不变,只改 GCS_BUCKET);旧桶只读保留 2 周供回滚后删除。`_backup_20261026/`(修复前三件套)随迁;`_shadow_gtxy/` 已退役未迁。
 - **线上改动必须同步提交本目录**,否则下次 `deploy.sh` 会把线上改回去。
 
 ---
@@ -26,7 +26,7 @@ docs/28 阶段1。本目录是**改造 overlay**,原文件(`two_tower_lite/*`、
 | BQ_TABLE | `rezonaai.dwd/ads.*` | `gtxy-rzn-infra.dwd/ads.*` |
 | swing REDIS_HOST | (未设 → 代码默认旧 `10.151.208.35`) | **显式 `10.97.68.75:6379`**(新 reco-redis,坑1) |
 | KSA `recoleaf`/`syncer-sa` | 旧项目 WI | 新建 + 注解新 GSA(`00-serviceaccount.yaml`) |
-| GCS_BUCKET | `rezona-ml`(不改,留旧项目,SA 已跨项目授权 ADR-014) | 同 |
+| GCS_BUCKET | `rezona-ml`(旧项目) | `rzn-rezona-ml`(2026-10-27 迁入新项目;迁移期曾跨项目授权沿用旧桶,ADR-014) |
 
 ## 部署前提(rezona-infra 侧已完成)
 - AR `gtxy-rzn-infra/reco-model` 已建;GSA `recoleaf-kafka-writer`/`syncer` 已建并授权(BQ+Kafka+rezona-ml/datalake 桶+WI)。

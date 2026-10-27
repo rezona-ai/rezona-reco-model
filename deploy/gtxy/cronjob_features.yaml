@@ -24,7 +24,7 @@ spec:
 
             env:
             - name: GCS_BUCKET
-              value: "rezona-ml"
+              value: "rzn-rezona-ml"
             - name: GCS_ARTIFACTS_PREFIX
               value: "two_tower_lite/artifacts"
             - name: GCS_RAW_PREFIX

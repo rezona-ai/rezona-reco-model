@@ -24,7 +24,7 @@ spec:
 
             env:
             - name: GCS_BUCKET
-              value: "rezona-ml"
+              value: "rzn-rezona-ml"
             - name: GCS_SLIM_PREFIX
               value: "swing/slim"
             - name: GCS_ARTIFACTS_PREFIX

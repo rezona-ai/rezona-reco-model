@@ -120,7 +120,7 @@ flowchart TD
 ## GCS 目录结构
 
 ```
-gs://rezona-ml/
+gs://rzn-rezona-ml/
 └── two_tower_lite/
     ├── slim/                            # per-day slim ndjson.gz（增量缓存）
     │   └── YYYY-MM-DD.ndjson.gz        # ~20 MB/天
@@ -151,9 +151,9 @@ gs://rezona-ml/
 
 | 资源 | 状态 | 说明 |
 |---|---|---|
-| `gs://rezona-ml` | ✅ 已创建 | us-east1，与 GKE 集群同区，流量免费 |
+| `gs://rzn-rezona-ml` | ✅ 已创建 | gtxy-rzn-infra 项目，us-east1，与 GKE 集群同区（2026-10-27 从旧项目 gs://rezona-ml 迁入） |
 | K8s ServiceAccount `recoleaf` | ✅ 复用 | production namespace |
-| `recoleaf-kafka-writer` → GCS | ✅ objectAdmin | 可读写 `gs://rezona-ml` |
+| `recoleaf-kafka-writer` → GCS | ✅ objectAdmin | 可读写 `gs://rzn-rezona-ml` |
 | `recoleaf-kafka-writer` → BQ | ✅ dataViewer + jobUser | 可查询源表及 ads 表 |
 | Artifact Registry `reco-model` | ✅ 已创建 | `us-east1-docker.pkg.dev/gtxy-rzn-infra/reco-model/` |
 
@@ -250,12 +250,12 @@ kubectl get jobs -n production --sort-by=.metadata.creationTimestamp
 
 ```bash
 # ckpt
-LATEST=$(gsutil ls gs://rezona-ml/two_tower_lite/ckpts/ | sort | tail -1)
+LATEST=$(gsutil ls gs://rzn-rezona-ml/two_tower_lite/ckpts/ | sort | tail -1)
 gsutil cp ${LATEST}two_tower_lite_best.pt ./
 gsutil cp ${LATEST}curves.png ./
 
 # item vectors
-LATEST_VEC=$(gsutil ls gs://rezona-ml/two_tower_lite/item_vectors/ | sort | tail -1)
+LATEST_VEC=$(gsutil ls gs://rzn-rezona-ml/two_tower_lite/item_vectors/ | sort | tail -1)
 gsutil cp ${LATEST_VEC}item_vectors.npy ./
 gsutil cp ${LATEST_VEC}game_ids.json ./
 gsutil cp ${LATEST_VEC}emb_analysis.png ./

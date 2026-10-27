@@ -3,7 +3,7 @@
 Job 2 — 从 GCS 下载 artifacts → 训练 → 上传 ckpt 到 GCS。
 
 Env vars:
-  GCS_BUCKET              e.g. rezona-ml
+  GCS_BUCKET              e.g. rzn-rezona-ml
   GCS_ARTIFACTS_PREFIX    e.g. two_tower_lite/artifacts  (会读 latest/ 子目录)
   GCS_CKPT_PREFIX         e.g. two_tower_lite/ckpts      (会写 YYYY-MM-DD/ 子目录)
   EPOCHS                  default 2
