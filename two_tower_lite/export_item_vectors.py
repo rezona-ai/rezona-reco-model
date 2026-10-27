@@ -14,7 +14,7 @@ Output: gs://{GCS_BUCKET}/{GCS_ITEM_VECTORS_PREFIX}/{YYYY-MM-DD}/
           game_ids.json      list of N game_id strings (same order)
 
 Env vars:
-  GCS_BUCKET                 e.g. rezona-ml
+  GCS_BUCKET                 e.g. rzn-rezona-ml
   GCS_ARTIFACTS_PREFIX       e.g. two_tower_lite/artifacts
   GCS_CKPT_PREFIX            e.g. two_tower_lite/ckpts
   GCS_ITEM_VECTORS_PREFIX    e.g. two_tower_lite/item_vectors  (default)

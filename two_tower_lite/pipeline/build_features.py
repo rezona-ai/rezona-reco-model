@@ -12,7 +12,7 @@ Output: OUT_DIR/
           test.npz      encoded test rows
 
 Env vars:
-  GCS_BUCKET          e.g. rezona-ml
+  GCS_BUCKET          e.g. rzn-rezona-ml
   GCS_SLIM_PREFIX     e.g. two_tower_lite/slim
   TRAIN_DAYS          comma-separated dates, e.g. 2026-06-23,...
   TEST_DAYS           comma-separated dates, e.g. 2026-07-06

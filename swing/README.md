@@ -106,13 +106,13 @@ score(A, B) = Σ_{u,v ∈ uids}  1 / (α + |I_u ∩ I_v|)   (u=v 贡献1次，u�
 BQ reco_labeled_log_flat
         │  每天新增一天（SELECT uid + recent_games，仅两列）
         ▼
-gs://rezona-ml/swing/slim/YYYY-MM-DD.ndjson.gz     ← 18 天滚动缓存
+gs://rzn-rezona-ml/swing/slim/YYYY-MM-DD.ndjson.gz     ← 18 天滚动缓存
         │  每行：{"uid": int, "games": [{"gid": int, "label": int, "pt": int}]}
         ▼
   Swing 算法（Pass 1 → Pass 2 → Step 3）
         ▼
-gs://rezona-ml/swing/artifacts/YYYY-MM-DD/         ← 每天存档
-gs://rezona-ml/swing/artifacts/latest/             ← 最新版本
+gs://rzn-rezona-ml/swing/artifacts/YYYY-MM-DD/         ← 每天存档
+gs://rzn-rezona-ml/swing/artifacts/latest/             ← 最新版本
     ├── i2i_index.json          game_id → [{game_id, score, co_users}, ...]
     ├── i2i_index_simple.json   game_id → [game_id, ...]
     └── i2i_stats.json          构建统计
@@ -228,7 +228,7 @@ kubectl create job --from=cronjob/swing-i2i-build "swing-now-${DATE}" -n product
 kubectl logs -f job/swing-now-${DATE} -n production
 
 # 4. 确认产物已上传
-gsutil ls gs://rezona-ml/swing/artifacts/latest/
+gsutil ls gs://rzn-rezona-ml/swing/artifacts/latest/
 ```
 
 ### 日常运行
@@ -236,7 +236,7 @@ gsutil ls gs://rezona-ml/swing/artifacts/latest/
 CronJob `swing-i2i-build` 每天 **04:30 UTC**（北京时间 12:30）自动执行：
 1. 检查 slim 缓存，仅拉取昨天新数据（约 5～10 分钟）
 2. 下载 18 天 slim 文件，运行 Swing 算法（约 20～40 分钟）
-3. 上传结果到 `gs://rezona-ml/swing/artifacts/latest/`
+3. 上传结果到 `gs://rzn-rezona-ml/swing/artifacts/latest/`
 
 ### 查看状态
 
@@ -248,8 +248,8 @@ kubectl get cronjob swing-i2i-build -n production
 kubectl logs -n production -l job-name=<job-name>
 
 # 确认 GCS 产物
-gsutil ls gs://rezona-ml/swing/artifacts/latest/
-gsutil cat gs://rezona-ml/swing/artifacts/latest/i2i_stats.json
+gsutil ls gs://rzn-rezona-ml/swing/artifacts/latest/
+gsutil cat gs://rzn-rezona-ml/swing/artifacts/latest/i2i_stats.json
 ```
 
 ### 手动触发（按需重跑）
@@ -264,7 +264,7 @@ kubectl logs -f job/swing-now-${DATE} -n production
 
 | 变量 | 默认值 | 说明 |
 |---|---|---|
-| `GCS_BUCKET` | **必填** | e.g. `rezona-ml` |
+| `GCS_BUCKET` | **必填** | e.g. `rzn-rezona-ml` |
 | `GCS_SLIM_PREFIX` | `swing/slim` | slim 缓存路径 |
 | `GCS_ARTIFACTS_PREFIX` | `swing/artifacts` | 产物输出路径 |
 | `BQ_PROJECT` | `gtxy-rzn-infra` | BigQuery 项目 |
