@@ -4,7 +4,7 @@ metadata:
   name: two-tower-lite-export-items
   namespace: production
 spec:
-  schedule: "0 6 * * *"
+  schedule: "15 7 * * *"   # 须在当天 train 结束后;ranker 07:00 起每 5 分钟重试至 08:00
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 1

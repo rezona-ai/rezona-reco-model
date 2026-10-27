@@ -4,7 +4,7 @@
 
 - **本目录是生产唯一清单来源**,`./deploy.sh` 只 apply 本目录到新集群 `gke_gtxy-rzn-infra_us-east1_autopilot-cluster-1`。
   `two_tower_lite/*.yaml`、`swing/cronjob_swing.yaml` 与本目录内容保持一致,仅作历史保留,不要单独 apply。
-- 新集群 `production` 跑:`two-tower-lite-features`(03:00 UTC)→ `two-tower-lite-train`(04:00)→ `two-tower-lite-export-items`(06:00)→ ranker 07:00 UTC 热加载;`swing-i2i-build`(04:30)。
+- 新集群 `production` 跑:`two-tower-lite-features`(03:00 UTC)→ `two-tower-lite-train`(03:30,约 3h)→ `two-tower-lite-export-items`(07:15)→ ranker 07:00–08:00 UTC 重试热加载(北京 11:00 起、16:00 前结束,全在上班时间)。2026-10-26 因 train 从 ~1h 涨到 ~3h(训练 837 万行、测试 94 万行、每 50 步全量评估),由 04:00/06:00 调整而来;每天 03:00–07:30 UTC 勿重启 ranker;`swing-i2i-build`(04:30)。
 - 旧集群 `gke_rezonaai_us-east1_autopilot-cluster-1` 的 4 个 CronJob(features/train/export-items/swing)已于 2026-10-26 **suspend**,ranker 早已 0/0。
 - 事故背景:9-23 新集群 features 是从**未提交的本地 yaml** apply 的(写影子前缀 `_shadow_gtxy/`),train/export 未在新集群部署;旧集群 features 读旧项目 BQ(9-21 后冻结)每天失败,
   导致生产词表停在 9-22、游戏集合停在 9-21,9-22 后的新游戏 `predict_ctr` 全为 0,持续约 5 周。修复操作见 2026-10-26 TwoTower 修复 runbook。
