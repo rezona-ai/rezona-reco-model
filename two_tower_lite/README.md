@@ -5,7 +5,7 @@
 ```
 BigQuery (reco_labeled_log_flat)
   └─[pull_and_build.py 03:00 UTC]─→ GCS two_tower_lite/
-                                          └─[train_gcs.py 03:30 UTC]─→ GCS ckpts/
+                                          └─[train_gcs.py 04:00 UTC]─→ GCS ckpts/
                                                                               └─[export_item_vectors.py 07:15 UTC]─→ GCS item_vectors/
 ```
 
@@ -15,7 +15,7 @@ BigQuery (reco_labeled_log_flat)
 
 ### 训练架构（每日三步定时任务）
 
-三个 Kubernetes CronJob 通过 GCS 解耦：特征任务 03:00 UTC（北京 11:00）→ 训练任务 03:30 UTC（北京 11:30，约 3 小时）→ item 向量导出 07:15 UTC（北京 15:15）→ ranker 07:00–08:00 UTC（北京 15:00–16:00）重试热加载。`concurrencyPolicy: Forbid` 保证不重叠。
+三个 Kubernetes CronJob 通过 GCS 解耦：特征任务 03:00 UTC（北京 11:00）→ 训练任务 04:00 UTC（北京 12:00，约 3 小时）→ item 向量导出 07:15 UTC（北京 15:15）→ ranker 07:00–08:00 UTC（北京 15:00–16:00）重试热加载。`concurrencyPolicy: Forbid` 保证不重叠。
 
 ```mermaid
 flowchart TD
@@ -24,7 +24,7 @@ flowchart TD
     J1["Job 1 · pull_and_build.py<br/>cron 03:00 UTC · 拉取 → slim 化 → 特征工程 → 上传"]
     SLIM["GCS slim / YYYY-MM-DD.ndjson.gz<br/>增量缓存，约 20 MB/天（vs 原始 1.5 GB）"]
     ART["GCS artifacts / latest<br/>train.npz · test.npz · config.json · vocab.json"]
-    J2["Job 2 · train_gcs.py<br/>cron 03:30 UTC · 2 epochs · bs 4096 · lr 3e-3"]
+    J2["Job 2 · train_gcs.py<br/>cron 04:00 UTC · 2 epochs · bs 4096 · lr 3e-3"]
     CKPT["GCS ckpts / YYYY-MM-DD<br/>best.pt · ep0.pt · ep1.pt · curves.png"]
     J3["Job 3 · export_item_vectors.py<br/>cron 07:15 UTC · item emb 离线推理"]
     VEC["GCS item_vectors / YYYY-MM-DD<br/>item_vectors.npy · game_ids.json · emb_analysis.png"]
@@ -108,7 +108,7 @@ flowchart TD
 │   └── build_features.py       # 特征工程（slim ndjson.gz → npz + config + vocab）
 ├── Dockerfile                  # CPU-only torch，三个 Job 共用同一镜像
 ├── cronjob_features.yaml       # Job 1 CronJob（03:00 UTC = 北京 11:00）
-├── cronjob.yaml                # Job 2 CronJob（03:30 UTC = 北京 11:30）
+├── cronjob.yaml                # Job 2 CronJob（04:00 UTC = 北京 12:00）
 ├── cronjob_export_items.yaml   # Job 3 CronJob（07:15 UTC = 北京 15:15）
 ├── job_export_items.yaml       # Job 3 临时 Job yaml（手动触发用）
 ├── deploy.sh                   # Cloud Build 编译 + push + kubectl apply
