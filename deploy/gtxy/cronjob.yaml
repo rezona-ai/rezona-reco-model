@@ -4,7 +4,7 @@ metadata:
   name: two-tower-lite-train
   namespace: production
 spec:
-  schedule: "30 3 * * *"   # features 03:00 约 10 分钟跑完;train 约 3h(2026-10 数据量),提前开跑
+  schedule: "0 4 * * *"    # features 03:00 定时运行约 50-60min(需从 BQ 拉 D-1),04:00 前完成
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 1
