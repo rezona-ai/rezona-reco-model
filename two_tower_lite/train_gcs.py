@@ -10,6 +10,7 @@ Env vars:
   BS                      default 4096
   LR                      default 3e-3
   EVAL_EVERY              default 50
+  ARTIFACTS_WAIT_MINUTES  default 60  等当天 features 产出 latest/ 的最长分钟数,超时失败
 """
 import os, sys, json, copy, csv, time, datetime, tempfile, math
 import numpy as np
@@ -53,6 +54,23 @@ def gcs_upload_file(local_path: str, bucket_name: str, blob_name: str) -> None:
     size_mb = os.path.getsize(local_path) / 1e6
     print(f"  uploaded {os.path.basename(local_path)} ({size_mb:.1f}MB) "
           f"-> gs://{bucket_name}/{blob_name}")
+
+
+def wait_today_artifacts(bucket_name: str, prefix: str, wait_minutes: int) -> None:
+    """等 latest/ 下所有文件都是今天(UTC)写入的,防止 features 未跑完就用旧词表训练。"""
+    today    = datetime.datetime.now(datetime.timezone.utc).date()
+    deadline = time.time() + wait_minutes * 60
+    while True:
+        blobs = list(storage.Client().bucket(bucket_name).list_blobs(prefix=prefix + "/"))
+        stale = [b.name for b in blobs if b.updated.date() != today]
+        if blobs and not stale:
+            print(f"  artifacts ready: {len(blobs)} files updated {today}")
+            return
+        if time.time() >= deadline:
+            raise RuntimeError(f"artifacts not updated today ({today}) after {wait_minutes}min: "
+                               f"{stale or 'no files'}")
+        print(f"  artifacts not ready ({len(stale)} stale), retry in 60s")
+        time.sleep(60)
 
 
 # ── data loading ──────────────────────────────────────────────────────────────
@@ -243,6 +261,7 @@ def main():
     bs          = int(os.environ.get("BS", 4096))
     lr          = float(os.environ.get("LR", 3e-3))
     eval_every  = int(os.environ.get("EVAL_EVERY", 50))
+    wait_min    = int(os.environ.get("ARTIFACTS_WAIT_MINUTES", 60))
 
     with tempfile.TemporaryDirectory() as tmpdir:
         art_dir  = os.path.join(tmpdir, "artifacts")
@@ -250,6 +269,7 @@ def main():
 
         # 1. 从 GCS 下载 artifacts（同 region，免费）
         print(f"\n[1/3] downloading artifacts from gs://{bucket}/{art_prefix}/latest/")
+        wait_today_artifacts(bucket, f"{art_prefix}/latest", wait_min)
         gcs_download_dir(bucket, f"{art_prefix}/latest", art_dir)
 
         # 2. 训练

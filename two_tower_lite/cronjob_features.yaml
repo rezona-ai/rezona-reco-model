@@ -4,7 +4,7 @@ metadata:
   name: two-tower-lite-features
   namespace: production
 spec:
-  schedule: "0 3 * * *"
+  schedule: "0 2 * * *"    # dwd D-1 分区约 01:15 UTC 落地;定时运行约 45-60min
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 1

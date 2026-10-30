@@ -4,7 +4,7 @@ metadata:
   name: two-tower-lite-train
   namespace: production
 spec:
-  schedule: "0 4 * * *"    # features 03:00 定时运行约 50-60min(需从 BQ 拉 D-1),04:00 前完成
+  schedule: "0 3 * * *"    # features 02:00 跑约 45-60min;train 启动后会等 latest/ 全部为当天写入(ARTIFACTS_WAIT_MINUTES)
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 1
@@ -36,7 +36,7 @@ spec:
             - name: LR
               value: "3e-3"
             - name: EVAL_EVERY
-              value: "50"
+              value: "500"   # 全量评估(逐用户 GAUC)远慢于训练;best 均落在末尾,500 对 GAUC 影响 ≤0.0004(10-27~30 回放)
 
             resources:
               requests:
