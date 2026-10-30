@@ -4,7 +4,7 @@ Export item (game) embedding vectors from the latest trained TwoTowerLite checkp
 
 Steps:
   1. Load config.json + vocab.json from GCS artifacts/latest/
-  2. Load two_tower_lite_best.pt from the latest GCS ckpt directory
+  2. Wait for today's GCS ckpt directory, load two_tower_lite_best.pt
   3. Query BQ ads.ads_game_info_df_view (latest dt) with published-game filters
   4. Encode item features and run model.item_vec()
   5. Save item_vectors.npy + game_ids.json to GCS
@@ -20,8 +20,10 @@ Env vars:
   GCS_ITEM_VECTORS_PREFIX    e.g. two_tower_lite/item_vectors  (default)
   BQ_PROJECT                 default: gtxy-rzn-infra
   BQ_TABLE                   default: gtxy-rzn-infra.ads.ads_game_info_df_view
+  CKPT_WAIT_MINUTES          default 30  等当天(UTC)ckpt 的最长分钟数,超时失败;
+                             不回退旧 ckpt(旧 ckpt 与当天 vocab 尺寸不一致)
 """
-import os, sys, json, math, datetime, tempfile
+import os, sys, json, math, time, datetime, tempfile
 from pathlib import Path
 
 import numpy as np
@@ -44,6 +46,7 @@ GCS_CKPT_PREFIX         = os.environ["GCS_CKPT_PREFIX"]
 GCS_ITEM_VECTORS_PREFIX = os.environ.get("GCS_ITEM_VECTORS_PREFIX", "two_tower_lite/item_vectors")
 BQ_PROJECT              = os.environ.get("BQ_PROJECT", "gtxy-rzn-infra")
 BQ_TABLE                = os.environ.get("BQ_TABLE", "gtxy-rzn-infra.ads.ads_game_info_df_view")
+CKPT_WAIT_MINUTES       = int(os.environ.get("CKPT_WAIT_MINUTES", 30))
 
 PAD, OOV = 0, 1
 
@@ -90,16 +93,18 @@ def gcs_upload(local_path, blob_name):
     _bucket().blob(blob_name).upload_from_filename(local_path)
     print(f"  → gs://{GCS_BUCKET}/{blob_name}  ({os.path.getsize(local_path)/1e6:.1f}MB)")
 
-def latest_ckpt_date():
-    """Find the most recent date directory under GCS_CKPT_PREFIX."""
-    blobs = gcs_lib.Client().bucket(GCS_BUCKET).list_blobs(prefix=GCS_CKPT_PREFIX + "/")
-    dates = sorted({b.name.split("/")[len(GCS_CKPT_PREFIX.split("/"))]
-                    for b in blobs
-                    if len(b.name.split("/")) > len(GCS_CKPT_PREFIX.split("/"))
-                    and b.name.split("/")[len(GCS_CKPT_PREFIX.split("/"))].startswith("20")})
-    if not dates:
-        raise RuntimeError(f"No checkpoint dates found under gs://{GCS_BUCKET}/{GCS_CKPT_PREFIX}/")
-    return dates[-1]
+def wait_today_ckpt():
+    """Wait until today's (UTC) best ckpt exists; never fall back to an older date."""
+    today    = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+    blob     = _bucket().blob(f"{GCS_CKPT_PREFIX}/{today}/two_tower_lite_best.pt")
+    deadline = time.time() + CKPT_WAIT_MINUTES * 60
+    while not blob.exists():
+        if time.time() >= deadline:
+            raise RuntimeError(f"no ckpt for {today} after {CKPT_WAIT_MINUTES}min: "
+                               f"gs://{GCS_BUCKET}/{blob.name}")
+        print(f"  ckpt {today} not ready, retry in 60s")
+        time.sleep(60)
+    return today
 
 
 # ── feature encoding helpers ──────────────────────────────────────────────────
@@ -257,7 +262,7 @@ def main():
         num_std  = np.array(cfg["numeric"]["std"],  dtype=np.float64)
 
         # 2. load checkpoint
-        ckpt_date = latest_ckpt_date()
+        ckpt_date = wait_today_ckpt()
         ckpt_blob = f"{GCS_CKPT_PREFIX}/{ckpt_date}/two_tower_lite_best.pt"
         print(f"\n[2/4] loading checkpoint  gs://{GCS_BUCKET}/{ckpt_blob}")
         ckpt_path = f"{tmpdir}/best.pt"
