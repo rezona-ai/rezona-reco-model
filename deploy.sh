@@ -3,6 +3,8 @@
 #
 # 2026-10-26 起生产在 gtxy-rzn-infra（新集群），唯一清单来源是 deploy/gtxy/。
 # 旧项目 rezonaai 的 CronJob 已暂停，切勿再往旧集群 apply。
+# 2026-11-04 起 serving_deployment.yaml 的 ranker 镜像固定为 digest：这里构建的新 :latest 只进 CronJob，
+# 不会进 ranker。升级 ranker 见 two_tower_lite/serving/README.md「更新 ranker 镜像」。
 #
 # Usage:
 #   ./deploy.sh                  # build + apply all

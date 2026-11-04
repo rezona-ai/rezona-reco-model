@@ -10,7 +10,7 @@ spec:
   failedJobsHistoryLimit: 1
   jobTemplate:
     spec:
-      backoffLimit: 0
+      backoffLimit: 1   # 2026-11-04 起 0→1：被驱逐等失败时自动重试一次（单次约 16min）
       template:
         spec:
           restartPolicy: Never
@@ -36,7 +36,7 @@ spec:
             resources:
               requests:
                 cpu: "2"
-                memory: "4Gi"
+                memory: "8Gi"   # 2026-11-04 起 4Gi→8Gi：实际峰值约 5.8Gi，申请过低时节点内存紧张会被优先驱逐
               limits:
                 cpu: "4"
                 memory: "8Gi"
