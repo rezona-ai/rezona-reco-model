@@ -8,6 +8,10 @@
   - 2026-10-26 train 从 ~1h 涨到 ~3h(每 50 步全量评估),export 由 06:00 调到 07:15。
   - 2026-10-29 train 跑到 07:22(训练 910 万行、测试 79 万行,3h23m),07:15 的 export 拿到 10-28 的旧 ckpt 配当天 vocab,size mismatch 失败,ranker 停在 10-28 向量;10-30 同样情况,07:23 手动补跑 export。
   - 2026-10-30 起:`EVAL_EVERY` 50→500(评估是耗时大头,best 均在末尾,回放对 GAUC 影响 ≤0.0004);features/train 各提前 1h(dwd D-1 分区约 01:12 UTC 落地);train/export 加当天就绪等待,不再静默用旧产物。
+  - 2026-11-04 07:32 export 被节点内存压力驱逐(实际用量约 5.8Gi,申请 4Gi;`backoffLimit 0` 不重试;向量已算完,死在上传前画图),ranker 08:00 放弃刷新,当天新游戏缺向量。08:42 以 8Gi 手动补跑,09:03 `set image` 固定 digest 并滚动重启加载 11-04。
+    线上随后改为 export 内存申请 8Gi(= 上限)、`backoffLimit` 0→1(单次约 16min,07:39 前失败可赶上 ranker 07:55 最后一次热加载);本目录已同步。
+  - 2026-11-04 起 ranker 镜像固定为 digest `bc11648d…`(9-23 构建,tag `rollback-20260923`,10-27 起线上一直在跑的镜像):`deploy.sh` 每次全量重建 `:latest`(torch 未锁版本),
+    跟 `:latest` 时任何一次重启(含 Autopilot 缩容驱逐)都会静默换到新构建。CronJob 仍用 `:latest`。升级 ranker 见 `two_tower_lite/serving/README.md`「更新 ranker 镜像」。
 - 旧集群 `gke_rezonaai_us-east1_autopilot-cluster-1` 的 4 个 CronJob(features/train/export-items/swing)已于 2026-10-26 **suspend**,ranker 早已 0/0。
 - 事故背景:9-23 新集群 features 是从**未提交的本地 yaml** apply 的(写影子前缀 `_shadow_gtxy/`),train/export 未在新集群部署;旧集群 features 读旧项目 BQ(9-21 后冻结)每天失败,
   导致生产词表停在 9-22、游戏集合停在 9-21,9-22 后的新游戏 `predict_ctr` 全为 0,持续约 5 周。修复操作见 2026-10-26 TwoTower 修复 runbook。

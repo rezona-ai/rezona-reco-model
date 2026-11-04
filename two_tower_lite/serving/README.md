@@ -228,7 +228,25 @@ Dockerfile 在 `COPY serving/` 后自动执行 `grpc_tools.protoc`，无需手�
 kubectl apply -f serving/deployment.yaml
 ```
 
-### 滚动重启（镜像更新后）
+### 更新 ranker 镜像
+
+2026-11-04 起 deployment 固定了镜像 digest，编译新的 `:latest` 或 `rollout restart` 都不会换 ranker 的镜像。升级步骤：
+
+```bash
+# 1. 取新镜像的 digest
+gcloud artifacts docker images describe \
+  us-east1-docker.pkg.dev/gtxy-rzn-infra/reco-model/ml-trainer:latest \
+  --format='value(image_summary.digest)'
+
+# 2. 先验证新镜像（例如用新 digest 起一个临时 pod，确认能加载当天三件套、打出 bundle ready），
+#    再把 deploy/gtxy/serving_deployment.yaml 和 two_tower_lite/serving/deployment.yaml 里的 digest 一起改掉并提交
+
+# 3. 在仓库根目录 apply，即滚动重启；避开每天 02:00–07:30 UTC
+kubectl --context gke_gtxy-rzn-infra_us-east1_autopilot-cluster-1 apply -f deploy/gtxy/serving_deployment.yaml
+kubectl --context gke_gtxy-rzn-infra_us-east1_autopilot-cluster-1 rollout status deployment/two-tower-lite-ranker -n production
+```
+
+### 滚动重启（只重新加载当天数据，不换镜像）
 
 ```bash
 kubectl rollout restart deployment/two-tower-lite-ranker -n production

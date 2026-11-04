@@ -22,7 +22,9 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
       - name: ranker
-        image: us-east1-docker.pkg.dev/gtxy-rzn-infra/reco-model/ml-trainer:latest
+        # 2026-11-04 起固定 digest（9-23 构建，tag rollback-20260923），与线上一致。不跟 :latest：deploy.sh 每次全量重建 :latest
+        # （torch 未锁版本），跟 :latest 时任何一次重启（含 Autopilot 缩容驱逐）都会静默换镜像。升级见 two_tower_lite/serving/README.md「更新 ranker 镜像」
+        image: us-east1-docker.pkg.dev/gtxy-rzn-infra/reco-model/ml-trainer@sha256:bc11648dcfa4bb5d3d2ec1fc6bbd3724c2f4f79fb804ae903cf70ee4eb1e269b
         imagePullPolicy: Always
         command: ["python", "/app/two_tower_lite/serving/server.py"]
         env:
