@@ -19,7 +19,17 @@ spec:
         app: two-tower-lite-ranker
     spec:
       serviceAccountName: recoleaf
-      terminationGracePeriodSeconds: 30
+      # 2026-11-05 起 30→60：preStop 先等 30s，之后 SIGTERM 触发 server.stop(grace=20s)，合计不超过 60s
+      terminationGracePeriodSeconds: 60
+      # 2026-11-05：两个副本尽量分到不同节点（软约束）。11-04 14:09 两个 pod 在同一节点上被 Autopilot 缩容同时驱逐，
+      # 双塔中断约 30s。另见 ranker_pdb.yaml
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app: two-tower-lite-ranker
       containers:
       - name: ranker
         # 2026-11-04 起固定 digest（9-23 构建，tag rollback-20260923），与线上一致。不跟 :latest：deploy.sh 每次全量重建 :latest
@@ -42,6 +52,20 @@ spec:
           value: "4"
         - name: REFRESH_ENABLED
           value: "true"
+        # 2026-11-05：限制 torch（OpenMP/MKL）和 numpy（OpenBLAS）的线程数。不设时按节点核数开线程（16 核节点开 16 个），
+        # 而 CPU limit 只有 2，会被 CFS 节流：10-26 到 11-04 有 pod 在 16 核节点期间，双塔调用 1–5% 超时。打分计算量很小，单线程足够
+        - name: OMP_NUM_THREADS
+          value: "1"
+        - name: OPENBLAS_NUM_THREADS
+          value: "1"
+        - name: MKL_NUM_THREADS
+          value: "1"
+        lifecycle:
+          preStop:
+            # 2026-11-05：终止时先从 DNS 摘掉、继续服务 30s，reco-leaf（dns:/// + round_robin，重新解析至少间隔 30s）
+            # 有时间切到新地址，避免重启时出现几秒的 Unavailable
+            sleep:
+              seconds: 30
         ports:
         - name: grpc
           containerPort: 50051
@@ -49,7 +73,7 @@ spec:
         resources:
           requests:
             cpu: "1"
-            memory: "2Gi"
+            memory: "3Gi"   # 2026-11-05 起 2Gi→3Gi：每天进程内刷新后常驻约 2.0GiB，贴着申请值时节点内存紧张会被优先驱逐
           limits:
             cpu: "2"
             memory: "4Gi"

@@ -1,0 +1,12 @@
+# 2026-11-05：ranker 至少保留 1 个可用副本。集群缩容、节点升级等自愿驱逐会遵守它，
+# 不会再把两个副本同时赶走；Deployment 滚动更新不走驱逐，不受影响。
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: two-tower-lite-ranker-pdb
+  namespace: production
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: two-tower-lite-ranker
