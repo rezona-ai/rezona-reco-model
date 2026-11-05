@@ -41,6 +41,7 @@ kc apply -f "${MANIFESTS}/cronjob.yaml"
 kc apply -f "${MANIFESTS}/cronjob_export_items.yaml"
 kc apply -f "${MANIFESTS}/cronjob_swing.yaml"
 kc apply -f "${MANIFESTS}/serving_deployment.yaml"
+kc apply -f "${MANIFESTS}/ranker_pdb.yaml"
 
 if [[ "${RUN_NOW}" == "true" ]]; then
   DATE=$(date +%m%d%H%M)

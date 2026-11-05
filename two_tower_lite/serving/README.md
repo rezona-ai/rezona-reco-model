@@ -175,12 +175,15 @@ gs://rzn-rezona-ml/two_tower_lite/item_vectors/YYYY-MM-DD/
 
 ## 优雅停机
 
-服务注册了 `SIGTERM` handler，Kubernetes 滚动更新时：
-1. 收到 SIGTERM → `server.stop(grace=20)` 停止接收新请求
-2. 已有请求最多 20 秒内完成
-3. 进程正常退出
+服务注册了 `SIGTERM` handler，Kubernetes 滚动更新或驱逐时：
+1. 先执行 preStop：等 30 秒。此时 pod 已从 headless Service 的 DNS 记录里摘掉，但已有连接照常服务，
+   reco-leaf（`dns:///` + round_robin，DNS 重新解析至少间隔 30 秒）有时间切到新地址
+2. 收到 SIGTERM → `server.stop(grace=20)` 停止接收新请求
+3. 已有请求最多 20 秒内完成
+4. 进程正常退出
 
-`deployment.yaml` 中 `terminationGracePeriodSeconds: 30` 与 grace 20s 匹配，留有缓冲。
+`deployment.yaml` 中 `terminationGracePeriodSeconds: 60` 覆盖 preStop 30s + grace 20s。另有 PDB（`deploy/gtxy/ranker_pdb.yaml`）
+保证缩容、节点升级等驱逐时至少留 1 个副本，Deployment 还按节点分散两个副本（软约束）。
 
 ---
 
@@ -195,6 +198,7 @@ gs://rzn-rezona-ml/two_tower_lite/item_vectors/YYYY-MM-DD/
 | `GRPC_PORT` | `50051` | 监听端口 |
 | `GRPC_WORKERS` | `os.cpu_count() × 2` | gRPC 线程池大小，numpy BLAS 释放 GIL 可真正并行 |
 | `REFRESH_ENABLED` | `true` | 是否启用每日自动刷新 |
+| `OMP_NUM_THREADS` / `OPENBLAS_NUM_THREADS` / `MKL_NUM_THREADS` | 不设（按节点核数） | deployment 里都设为 `1`。不设时 torch 和 numpy 按节点核数开线程，16 核节点开 16 个，而 CPU limit 只有 2，会被节流导致超时 |
 
 **本地开发**（`GCS_BUCKET` 不填时走本地路径）：
 
